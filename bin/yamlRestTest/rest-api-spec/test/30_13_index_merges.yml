@@ -1,0 +1,147 @@
+---
+"Index level statistics (index_merges_*)":
+
+  # -----------------------------------
+  # We expect no indices in the cluster
+  - do:
+      indices.refresh: { allow_no_indices: true }
+
+  - do:
+      cluster.stats: {}
+
+  - match: { indices.count: 0 }
+
+  - do:
+      index:
+        index:  twitter
+        id:     1
+        body:   { foo: bar }
+
+  - do:
+      indices.refresh: { allow_no_indices: true }
+
+  # -----------------------------------
+  # We expect index level stats present now (by default)
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_current_number (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_current_number \s gauge \n
+        (
+          opensearch_index_merges_current_number\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_current_docs_number (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_current_docs_number \s gauge \n
+        (
+          opensearch_index_merges_current_docs_number\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_current_size_bytes (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_current_size_bytes \s gauge \n
+        (
+          opensearch_index_merges_current_size_bytes\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_number (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_number \s gauge \n
+        (
+          opensearch_index_merges_total_number\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_time_seconds (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_time_seconds \s gauge \n
+        (
+          opensearch_index_merges_total_time_seconds\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_docs_count (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_docs_count \s gauge \n
+        (
+          opensearch_index_merges_total_docs_count\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_size_bytes (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_size_bytes \s gauge \n
+        (
+          opensearch_index_merges_total_size_bytes\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_stopped_time_seconds (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_stopped_time_seconds \s gauge \n
+        (
+          opensearch_index_merges_total_stopped_time_seconds\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_throttled_time_seconds (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_throttled_time_seconds \s gauge \n
+        (
+          opensearch_index_merges_total_throttled_time_seconds\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_auto_throttle_bytes (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_auto_throttle_bytes \s gauge \n
+        (
+          opensearch_index_merges_total_auto_throttle_bytes\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+([eE]\d+)? \n?
+        ){2}
+        .*/

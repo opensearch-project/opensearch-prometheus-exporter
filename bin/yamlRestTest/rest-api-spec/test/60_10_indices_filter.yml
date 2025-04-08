@@ -1,0 +1,259 @@
+---
+"Indices filter":
+
+  # Make sure indices filter setting is in the default state
+  - do:
+      cluster.get_settings:
+        include_defaults: false
+
+  - match: {persistent: {}}
+  - match: {transient: {}}
+
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+        filter_path: defaults.prometheus
+
+  - match: {defaults.prometheus.indices_filter.selected_indices: ""}
+  - match: {defaults.prometheus.indices_filter.selected_option: "STRICT_EXPAND_OPEN_FORBID_CLOSED"}
+
+   # Create 3 indices
+  - do:
+      index:
+        index:  log-a-test
+        id:     1
+        body:   { foo: bar }
+
+  - do:
+      index:
+        index:  log-b-test
+        id:     2
+        body:   { foo: bar }
+
+  - do:
+      index:
+        index:  log-c-test
+        id:     3
+        body:   { foo: bar }
+
+  # Should have metrics for all indices
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="(log-a-test|log-b-test|log-c-test)",
+        \} \s+ \d+\.\d+ \n?){3}
+        .*/
+
+  # Change selected_indices to "log-a-*"
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: "log-a-*"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.indices_filter.selected_indices: "log-a-*"}}
+
+  # Should have metrics for index log-a-test only, no metrics for others
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="(?=log-a-test)(?!(log-b-test|log-c-test))(.*)",
+        \} \s+ \d+\.\d+ \n?
+        .*/
+
+  # Change selected_indices to "*b-*,log*c-test"
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: "*b-*,log*c-test"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.indices_filter.selected_indices: "*b-*,log*c-test"}}
+
+  # Should have metrics for indices log-b-test and log-c-test, no metrics for index log-a-test
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="(?=(log-b-test|log-c-test))(?!log-a-test)(.*)",
+        \} \s+ \d+\.\d+ \n?){2}
+        .*/
+
+  # Change selected_indices to "*"
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: "*"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.indices_filter.selected_indices: "*"}}
+
+  # Should have metrics for all indices
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="(log-a-test|log-b-test|log-c-test)",
+        \} \s+ \d+\.\d+ \n?){3}
+        .*/
+
+  # Change selected_indices to "_all"
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: "_all"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.indices_filter.selected_indices: "_all"}}
+
+  # Should have metrics for all indices
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="(log-a-test|log-b-test|log-c-test)",
+        \} \s+ \d+\.\d+ \n?){3}
+        .*/
+
+  # Change selected_indices to null
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: null
+        flat_settings: true
+
+  - match: {persistent: {}}
+
+  # Should have metrics for all indices
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="(log-a-test|log-b-test|log-c-test)",
+        \} \s+ \d+\.\d+ \n?){3}
+        .*/
+
+  # Change selected_indices to "log*,test"
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: "log*,test"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.indices_filter.selected_indices: "log*,test"}}
+
+  # Should have errors
+  - do:
+      catch: request
+      prometheus.metrics: {}
+
+  - match: {status: 500}
+  - match: {error.type: "exception"}
+  - match: {error.reason: "Indices stats request failed"}
+  - match: {error.caused_by.type: "index_not_found_exception"}
+  - match: {error.caused_by.reason: "no such index [test]"}
+
+  # Change selected_option to "LENIENT_EXPAND_OPEN"
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_option: "LENIENT_EXPAND_OPEN"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.indices_filter.selected_option: "LENIENT_EXPAND_OPEN"}}
+
+  # Should have metrics for indices log*
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="(log-a-test|log-b-test|log-c-test)",
+        \} \s+ \d+\.\d+ \n?){3}
+        .*/
+
+  # Change selected_indices to "test"
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: "test"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.indices_filter.selected_indices: "test"}}
+
+  # Should no metrics for index test
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_status (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_status \s gauge \n
+        (?!opensearch_index_status)
+        .*/
+
+  # Change selected_option to "TEST"
+  - do:
+      catch: bad_request
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_option: "TEST"
+        flat_settings: true
+
+  - match: {status: 400}
+  - match: {error.type: "illegal_argument_exception"}
+  - match: {error.reason: "No enum constant org.compuscene.metrics.prometheus.PrometheusSettings.INDEX_FILTER_OPTIONS.TEST"}
+
+  # Unexpected input values
+  - do:
+      catch: request
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.indices_filter.selected_indices: [ "", null, 10 ]
+        flat_settings: true
+
+  - match: {status: 500}
+  - match: {error.type: "settings_exception"}
+  - match: {error.reason: "Failed to load settings from [{\"prometheus.indices_filter.selected_indices\":[\"\",null,10]}]"}
+  - match: {error.caused_by.type: "illegal_state_exception"}
+  - match: {error.caused_by.reason: "only value lists are allowed in serialized settings"}

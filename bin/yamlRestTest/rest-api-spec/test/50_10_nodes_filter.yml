@@ -1,0 +1,66 @@
+---
+"Cluster nodes filter":
+
+  # Make sure cluster settings are all in the default state
+  - do:
+      cluster.get_settings:
+        include_defaults: false
+
+  - match: {persistent: {}}
+  - match: {transient: {}}
+
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+        filter_path: defaults.prometheus
+
+  - match: {defaults.prometheus.cluster.settings: "true"}
+  - match: {defaults.prometheus.indices: "true"}
+  - match: {defaults.prometheus.nodes.filter: "_local"}
+  - match: {defaults.prometheus.metric_name.prefix: "opensearch_"}
+
+
+  # Verify in Prometheus metrics that we get metrics only from a single node (the _local one):
+  - do:
+      prometheus.metrics: {}
+
+  # The pattern is present only once. We test is by checking that the end of the pattern is
+  # either start of a new line (followed by a comment, ie #) or there is no new-line (which should be EOF).
+  - match:
+      $body: |
+        /.*
+        opensearch_process_cpu_percent\{
+            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+        \,} \s \d+\.\d+ (\n\#|![\n])
+        .*/
+
+  # Change nodes filter to "_all" nodes
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.nodes.filter: "_all"
+        flat_settings: true
+
+  - match: {persistent: {prometheus.nodes.filter: "_all"}}
+
+  # Verify in Prometheus metrics:
+  - do:
+      prometheus.metrics: {}
+
+  # Notice the pattern is expected to occur twice ({2}) because we have a cluster with two nodes
+  - match:
+      $body: |
+        /.*
+        (opensearch_process_cpu_percent\{
+            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+        \,} \s \d+\.\d+ \n?){2}
+        .*/
+
+  # Remove persistent settings
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.nodes.filter: null
+        flat_settings: true
