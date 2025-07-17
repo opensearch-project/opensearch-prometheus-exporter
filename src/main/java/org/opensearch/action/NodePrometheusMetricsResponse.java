@@ -17,6 +17,7 @@
 
 package org.opensearch.action;
 
+import org.opensearch.Version;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
@@ -29,6 +30,7 @@ import org.opensearch.core.common.io.stream.StreamInput;
 import org.opensearch.core.common.io.stream.StreamOutput;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.search.pipeline.SearchPipelineStats;
 
 import java.io.IOException;
 
@@ -43,6 +45,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
     private ClusterStatsData clusterStatsData = null;
+    @Nullable private final SnapshotsResponse snapshotsResponse;
 
     /**
      * A constructor that materialize the instance from inputStream.
@@ -56,6 +59,11 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = PackageAccessHelper.createIndicesStatsResponse(in);
         clusterStatsData = new ClusterStatsData(in);
+        if (in.getVersion().onOrAfter(Version.V_2_17_1)) {
+            snapshotsResponse = new SnapshotsResponse(in);
+        } else {
+            snapshotsResponse = null;
+        }
     }
 
     /**
@@ -65,6 +73,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
+     * @param snapshotsResponse SnapshotsResponse
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -73,6 +82,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
+                                         @Nullable SnapshotsResponse snapshotsResponse,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
@@ -82,6 +92,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
+        this.snapshotsResponse = snapshotsResponse;
     }
 
     /**
@@ -104,6 +115,15 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      */
     public NodeStats[] getNodeStats() {
         return this.nodeStats;
+    }
+
+    /**
+     * Get internal {@link SnapshotsResponse} object.
+     * @return SnapshotsResponse object
+     */
+    @Nullable
+    public SnapshotsResponse getSnapshotsResponse() {
+        return this.snapshotsResponse;
     }
 
     /**
@@ -131,5 +151,8 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
         clusterStatsData.writeTo(out);
+        if (out.getVersion().onOrAfter(Version.V_2_17_1)) {
+            snapshotsResponse.writeTo(out);
+        }
     }
 }

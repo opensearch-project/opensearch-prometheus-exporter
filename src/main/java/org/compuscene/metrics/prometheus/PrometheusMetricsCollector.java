@@ -18,6 +18,7 @@
 package org.compuscene.metrics.prometheus;
 
 import org.opensearch.action.ClusterStatsData;
+import org.opensearch.action.SnapshotsResponse;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.indices.stats.CommonStats;
@@ -37,6 +38,8 @@ import org.opensearch.monitor.jvm.JvmStats;
 import org.opensearch.monitor.os.OsStats;
 import org.opensearch.monitor.process.ProcessStats;
 import org.opensearch.script.ScriptStats;
+import org.opensearch.snapshots.SnapshotInfo;
+import org.opensearch.snapshots.SnapshotState;
 import org.opensearch.threadpool.ThreadPoolStats;
 import org.opensearch.transport.TransportStats;
 
@@ -54,19 +57,23 @@ public class PrometheusMetricsCollector {
 
     private boolean isPrometheusClusterSettings;
     private boolean isPrometheusIndices;
+    private boolean isPrometheusSnapshots;
     private PrometheusMetricsCatalog catalog;
 
     /**
      * A constructor.
      * @param catalog {@link PrometheusMetricsCatalog}
      * @param isPrometheusIndices boolean flag for index level metric
+     * @param isPrometheusSnapshots boolean flag for snapshots related metrics
      * @param isPrometheusClusterSettings boolean flag cluster settings metrics
      */
     public PrometheusMetricsCollector(PrometheusMetricsCatalog catalog,
                                       boolean isPrometheusIndices,
+                                      boolean isPrometheusSnapshots,
                                       boolean isPrometheusClusterSettings) {
         this.isPrometheusClusterSettings = isPrometheusClusterSettings;
         this.isPrometheusIndices = isPrometheusIndices;
+        this.isPrometheusSnapshots = isPrometheusSnapshots;
         this.catalog = catalog;
     }
 
@@ -80,6 +87,7 @@ public class PrometheusMetricsCollector {
         registerNodeMetrics();
         registerIndicesMetrics();
         registerPerIndexMetrics();
+        registerSnapshotMetrics();
         registerTransportMetrics();
         registerHTTPMetrics();
         registerThreadPoolMetrics();
@@ -462,6 +470,30 @@ public class PrometheusMetricsCollector {
                 updatePerIndexContextMetrics(indexName, "total", indexStats.getTotal());
                 updatePerIndexContextMetrics(indexName, "primaries", indexStats.getPrimaries());
             }
+        }
+    }
+
+    @SuppressWarnings("checkstyle:LineLength")
+    private void registerSnapshotMetrics() {
+        catalog.registerClusterGauge("min_snapshot_age", "Time elapsed in milliseconds since the most recent successful snapshot's start time", "sm_policy");
+    }
+
+    private void updateSnapshotsMetrics(@Nullable SnapshotsResponse snapshotsResponse) {
+        if (snapshotsResponse == null) {
+            return;
+        }
+        Map<String, Long> smPolicyMinSnapshotAge = new HashMap<>();
+        for (SnapshotInfo snapshotInfo : snapshotsResponse.getSnapshotInfos()) {
+            // emit min_snapshot_age metric only for successful snapshots
+            if (snapshotInfo.state() != SnapshotState.SUCCESS) {
+                continue;
+            }
+            String smPolicy = snapshotInfo.userMetadata() == null ? "adhoc" : snapshotInfo.userMetadata().getOrDefault("sm_policy", "adhoc").toString();
+            long snapshotAge = System.currentTimeMillis() - snapshotInfo.startTime();
+            smPolicyMinSnapshotAge.compute(smPolicy, (key, oldValue) -> oldValue == null ? snapshotAge : Math.min(oldValue, snapshotAge));
+        }
+        for(Map.Entry<String, Long> entry : smPolicyMinSnapshotAge.entrySet()) {
+            catalog.setClusterGauge("min_snapshot_age", entry.getValue(), entry.getKey());
         }
     }
 
@@ -920,12 +952,14 @@ public class PrometheusMetricsCollector {
      * @param nodeStats                 NodeStats filtered using nodes filter
      * @param indicesStats              IndicesStatsResponse
      * @param clusterStatsData          ClusterStatsData
+     * @param snapshotsResponse         SnapshotsResponse
      */
     public void updateMetrics(String originNodeName, String originNodeId,
                               @Nullable ClusterHealthResponse clusterHealthResponse,
                               NodeStats[] nodeStats,
                               @Nullable IndicesStatsResponse indicesStats,
-                              @Nullable ClusterStatsData clusterStatsData) {
+                              @Nullable ClusterStatsData clusterStatsData,
+                              @Nullable SnapshotsResponse snapshotsResponse) {
         Summary.Timer timer = catalog.startSummaryTimer(
                 new Tuple<>(originNodeName, originNodeId),
                 "metrics_generate_time_seconds");
@@ -956,7 +990,9 @@ public class PrometheusMetricsCollector {
         if (isPrometheusClusterSettings) {
             updateESSettings(clusterStatsData);
         }
-
+        if (isPrometheusSnapshots) {
+            updateSnapshotsMetrics(snapshotsResponse);
+        }
         timer.observeDuration();
     }
 
