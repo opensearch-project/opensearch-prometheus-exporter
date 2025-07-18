@@ -1,7 +1,8 @@
-## Description
+### Description
+_Describe what this change achieves._
 
-Describe your PR and add links to relevant issues.
+### Issues Resolved
+_List any issues this PR will resolve, e.g. Closes [...]._ 
 
----
-
-- [ ] All my commits include DCO.<br>_DCO stands for **Developer Certificate of Origin** and it is your declaration that your contribution is correctly attributed and licensed. Please read more about how to attach DCO to your commits [here](https://github.com/aiven/prometheus-exporter-plugin-for-opensearch/blob/main/CONTRIBUTING.md#developer-certificate-of-origin) (spoiler alert: in most cases it is as simple as using `-s` option when doing `git commit`).<br>Please be aware that commits without DCO will cause failure of PR CI workflow and can not be merged._
+By submitting this pull request, I confirm that my contribution is made under the terms of the Apache 2.0 license.
+For more information on following Developer Certificate of Origin and signing off your commits, please check [here](https://github.com/opensearch-project/opensearch-prometheus-exporter/blob/main/CONTRIBUTING.md#developer-certificate-of-origin).
