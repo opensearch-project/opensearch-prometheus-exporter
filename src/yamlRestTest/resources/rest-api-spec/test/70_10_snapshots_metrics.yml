@@ -1,0 +1,50 @@
+---
+"Verify snapshots metrics enabled":
+
+  # Create 'fs' snapshot repository
+  - do:
+      snapshot.create_repository:
+        repository: test_repo_get_1
+        body:
+          type: fs
+          settings:
+            location: "test_repo_get_1_loc"
+
+  - do:
+      snapshot.get_repository: { }
+
+  - is_true: test_repo_get_1
+
+  # Enable snapshots metrics
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            prometheus.snapshots: "true"
+        flat_settings: true
+
+  - match: { persistent: { prometheus.snapshots: "true" } }
+
+  # Create snapshot
+  - do:
+      snapshot.create:
+        repository: test_repo_get_1
+        snapshot: test_snapshot_1
+        wait_for_completion: true
+
+  - match: { snapshot.snapshot: test_snapshot_1 }
+  - match: { snapshot.state : SUCCESS }
+
+  # Fetch and verify metrics
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s* HELP \s+ opensearch_min_snapshot_age \s+.*\n
+        \# \s* TYPE \s+ opensearch_min_snapshot_age \s+ gauge\n
+        opensearch_min_snapshot_age\{
+          cluster="yamlRestTest",sm_policy="adhoc",
+        \}\s+\d+\.\d+\n
+        .*/

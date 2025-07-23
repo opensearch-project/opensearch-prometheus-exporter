@@ -1,3 +1,4 @@
+import org.opensearch.gradle.PropertyNormalization
 import org.opensearch.gradle.test.RestIntegTestTask
 
 import java.util.concurrent.Callable
@@ -113,7 +114,7 @@ dependencies {
 
 restResources {
     restApi {
-        includeCore '_common', 'cat', 'cluster', 'nodes', 'indices', 'index'
+        includeCore '_common', 'cat', 'cluster', 'nodes', 'indices', 'index', 'snapshot'
     }
 }
 
@@ -139,8 +140,13 @@ tasks.named("check").configure { dependsOn(integTest) }
 // Temporary disable task :testingConventions
 testingConventions.enabled = false
 
+// Directory for snapshot repository
+File repositoryDir = new File(project.layout.buildDirectory.get().asFile, "shared-repository")
+
 testClusters.all {
     numberOfNodes = 2
+    // Configuring repo path for 'fs' type snapshot repository
+    setting 'path.repo', "${repositoryDir.absolutePath}", PropertyNormalization.IGNORE_VALUE
 
     // It seems cluster name can not be customized here. It gives an error:
     // Testclusters does not allow the following settings to be changed:[cluster.name] for node{::yamlRestTest-0}
