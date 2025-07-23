@@ -27,6 +27,10 @@ import org.compuscene.metrics.prometheus.PrometheusMetricsCollector;
 import org.compuscene.metrics.prometheus.PrometheusSettings;
 import org.opensearch.action.NodePrometheusMetricsRequest;
 import org.opensearch.action.NodePrometheusMetricsResponse;
+import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
+import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
+import org.opensearch.core.action.ActionListener;
+import org.opensearch.OpenSearchException;
 import org.opensearch.client.node.NodeClient;
 import org.opensearch.common.network.NetworkAddress;
 import org.opensearch.common.settings.ClusterSettings;
@@ -65,7 +69,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
     private final String metricPrefix;
     private final PrometheusSettings prometheusSettings;
     private final Logger logger = LogManager.getLogger(getClass());
-
+    private ClusterStateResponse clusterStateResponse = null;
     /**
      * A constructor.
      * @param settings Settings
@@ -91,6 +95,18 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
         return "prometheus_metrics_action";
     }
 
+    private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
+    new ActionListener<ClusterStateResponse>() {
+        @Override
+        public void onResponse(ClusterStateResponse response) {
+            clusterStateResponse = response;  
+        }
+        @Override
+        public void onFailure(Exception e) {
+
+        }
+    };
+
      // This method does not throw any IOException because there are no request parameters to be parsed
      // and processed. This may change in the future.
     @Override
@@ -113,7 +129,8 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         assert response.getLocalNodesInfoResponse().getNodes().size() == 1;
                         String nodeName = response.getLocalNodesInfoResponse().getNodes().get(0).getNode().getName();
                         String nodeId = response.getLocalNodesInfoResponse().getNodes().get(0).getNode().getId();
-
+                        ClusterStateRequest clusterStateRequest = new ClusterStateRequest();
+                        client.admin().cluster().state(clusterStateRequest, clusterStateResponseActionListener);
                         if (logger.isTraceEnabled()) {
                             logger.trace("Preparing metrics output on node: [{}], [{}]", nodeName, nodeId);
                         }
@@ -130,7 +147,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.registerMetrics();
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
-                                    response.getIndicesStats(), response.getClusterStatsData());
+                                    response.getIndicesStats(), response.getClusterStatsData(),clusterStateResponse);
                             textContent = collector.getTextContent();
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing

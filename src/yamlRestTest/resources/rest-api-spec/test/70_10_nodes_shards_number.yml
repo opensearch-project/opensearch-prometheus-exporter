@@ -1,0 +1,31 @@
+"Cluster nodes shards (nodes_shards_number)":
+
+  # We expect no indices in the cluster 
+  - do:
+      indices.refresh: { allow_no_indices: true }
+
+  - do:
+      cluster.stats: {}
+
+  - match: { indices.count: 0 }
+
+  - do:
+      index:
+        index:  twitter
+        id:     1
+        body:   { foo: bar, settings: { number_of_shards: 5 } }
+  
+  - do:
+      indices.refresh: { allow_no_indices: true }
+
+  # Verify in Prometheus metrics that we get metrics only from a single node (the _local one):
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_nodes_shards_number\{
+            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+        \,} \s \d+\.\d+ (\n\#|![\n])
+        .*/
