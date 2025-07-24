@@ -261,6 +261,24 @@ To build the plugin you need JDK 17:
 ```
 If you have doubts about the system requirements, please check the [CI.yml](.github/workflows/CI.yml) file for more information.
 
+## Build from Docker
+
+```
+docker build -t prometheus-exporter:v1 .
+```
+
+If you want intergrate the plugin to opensearch you can use the following Dockerfile:
+
+```
+FROM prometheus-exporter:v1 as plugin
+
+FROM opensearch:2.18.0
+
+COPY --from=plugin /home/appuser/app/build/distributions /root/
+
+RUN opensearch-plugin install -b file:///root/prometheus-exporter-2.18.0.0.zip
+```
+
 ## Testing
 
 Project contains:
