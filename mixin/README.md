@@ -15,7 +15,7 @@ This repository branch contains a "Mixin" for OpenSearch® which is a set of Gra
 
 OpenSearch Grafana dashboard and Prometheus Rules and Alerts contained in this repository are meant to be a starting point for OpenSearch monitoring. The goal is to provide a solid foundation of essential metrics and alerts; however, it does not have the ambition to be the definitive and complete monitoring solution for every situation. In practice the set of important metrics and alerts is determined by a specific OpenSearch use case. Users are encouraged to explore their own specific monitoring needs and develop custom modifications of dashboards and alerts. Nevertheless, contributions back are warmly welcome.   
 
-This work is a based on the effort that was started in <https://github.com/lukas-vlcek/elasticsearch-mixin> and later incubated in <https://github.com/openshift/elasticsearch-operator/tree/master/files> (see [#12](https://github.com/aiven/prometheus-exporter-plugin-for-opensearch/issues/12)).
+This work is a based on the effort that was started in <https://github.com/lukas-vlcek/elasticsearch-mixin> and later incubated in <https://github.com/openshift/elasticsearch-operator/tree/master/files> (see [#12](https://github.com/opensearch-project/opensearch-prometheus-exporter/issues/12)).
 
 To learn more about the "mixin" concept please read <https://github.com/kubernetes-monitoring/kubernetes-mixin>.
 
