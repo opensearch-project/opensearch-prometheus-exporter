@@ -17,9 +17,16 @@
 
 package org.compuscene.metrics.prometheus;
 
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 import org.opensearch.action.ClusterStatsData;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
+import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
+import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
+import org.opensearch.cluster.node.DiscoveryNode;
+import org.opensearch.cluster.metadata.Metadata;
+import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.action.admin.indices.stats.CommonStats;
 import org.opensearch.action.admin.indices.stats.IndexStats;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
@@ -91,6 +98,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerESSettings();
+        registerNumberOfShardsPerNode();
     }
 
     private void registerClusterMetrics() {
@@ -925,7 +933,8 @@ public class PrometheusMetricsCollector {
                               @Nullable ClusterHealthResponse clusterHealthResponse,
                               NodeStats[] nodeStats,
                               @Nullable IndicesStatsResponse indicesStats,
-                              @Nullable ClusterStatsData clusterStatsData) {
+                              @Nullable ClusterStatsData clusterStatsData,
+                              @Nullable ClusterStateResponse clusterStateResponse) {
         Summary.Timer timer = catalog.startSummaryTimer(
                 new Tuple<>(originNodeName, originNodeId),
                 "metrics_generate_time_seconds");
@@ -936,6 +945,7 @@ public class PrometheusMetricsCollector {
             String nodeName = s.getNode().getName();
             String nodeID = s.getNode().getId();
             Tuple<String, String> nodeInfo = new Tuple<>(nodeName, nodeID);
+            DiscoveryNode node = s.getNode();
 
             updateNodeMetrics(nodeInfo, s);
             updateIndicesMetrics(nodeInfo, s.getIndices());
@@ -949,6 +959,7 @@ public class PrometheusMetricsCollector {
             updateJVMMetrics(nodeInfo, s.getJvm());
             updateOsMetrics(nodeInfo, s.getOs());
             updateFsMetrics(nodeInfo, s.getFs());
+            updateNumberOfShardsPerNode(nodeInfo,clusterStateResponse,node);
         }
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
@@ -959,6 +970,33 @@ public class PrometheusMetricsCollector {
 
         timer.observeDuration();
     }
+
+    private void registerNumberOfShardsPerNode() {
+        catalog.registerNodeGauge("nodes_shards_number", "node shards");
+    }
+    public void updateNumberOfShardsPerNode(Tuple<String, String> nodeInfo,ClusterStateResponse clusterStateResponse,DiscoveryNode node) {
+
+        final Map<String, Integer> allocs = new HashMap<>();
+        if(clusterStateResponse.getState().routingTable().allShards()!=null){
+            for (ShardRouting shard : clusterStateResponse.getState().routingTable().allShards()) {
+                String nodeId = "UNASSIGNED";
+
+                if (shard.assignedToNode()) {
+                    nodeId = shard.currentNodeId();
+                }
+
+                allocs.merge(nodeId, 1, Integer::sum);
+            }
+
+            int shardCount = allocs.getOrDefault(node.getId(), 0);
+
+                catalog.setNodeGauge(nodeInfo,"nodes_shards_number", shardCount);     
+
+        }
+
+    }
+
+
 
     /**
      * Get the metric catalog.
