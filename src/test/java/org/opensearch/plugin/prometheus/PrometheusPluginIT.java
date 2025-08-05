@@ -17,8 +17,9 @@
 package org.opensearch.plugin.prometheus;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import org.apache.http.Header;
-import org.apache.http.util.EntityUtils;
+import org.apache.hc.core5.http.Header;
+import org.apache.hc.core5.http.io.entity.EntityUtils;
+import org.apache.hc.core5.http.ParseException;
 import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.info.PluginsAndModules;
@@ -60,12 +61,12 @@ public class PrometheusPluginIT extends OpenSearchIntegTestCase {
         }
     }
 
-    public void testPrometheusClientResponse() throws IOException {
+    public void testPrometheusClientResponse() throws IOException, ParseException {
         RestClient rc = getRestClient();
         logClusterState();
         Response response = rc.performRequest(new Request("GET", "_prometheus/metrics"));
         assertEquals(200, response.getStatusLine().getStatusCode());
-        assertEquals("text/plain; charset=UTF-8", response.getEntity().getContentType().getValue());
+        assertEquals("text/plain; charset=UTF-8", response.getEntity().getContentType());
         String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
         assertTrue(body.startsWith("# HELP"));
     }

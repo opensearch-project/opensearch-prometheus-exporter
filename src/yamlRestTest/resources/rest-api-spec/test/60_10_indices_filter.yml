@@ -245,14 +245,14 @@
 
   # Unexpected input values
   - do:
-      catch: request
+      catch: bad_request
       cluster.put_settings:
         body:
           persistent:
             prometheus.indices_filter.selected_indices: [ "", null, 10 ]
         flat_settings: true
 
-  - match: {status: 500}
+  - match: {status: 400}
   - match: {error.type: "settings_exception"}
   - match: {error.reason: "Failed to load settings from [{\"prometheus.indices_filter.selected_indices\":[\"\",null,10]}]"}
   - match: {error.caused_by.type: "illegal_state_exception"}
