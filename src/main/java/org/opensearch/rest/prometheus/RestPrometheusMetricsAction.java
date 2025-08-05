@@ -91,8 +91,8 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
         return "prometheus_metrics_action";
     }
 
-     // This method does not throw any IOException because there are no request parameters to be parsed
-     // and processed. This may change in the future.
+    // This method does not throw any IOException because there are no request parameters to be parsed
+    // and processed. This may change in the future.
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         if (logger.isTraceEnabled()) {
@@ -125,12 +125,13 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector = new PrometheusMetricsCollector(
                                     catalog,
                                     prometheusSettings.getPrometheusIndices(),
+                                    prometheusSettings.getPrometheusSnapshots(),
                                     prometheusSettings.getPrometheusClusterSettings()
                             );
                             collector.registerMetrics();
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
-                                    response.getIndicesStats(), response.getClusterStatsData());
+                                    response.getIndicesStats(), response.getClusterStatsData(), response.getSnapshotsResponse());
                             textContent = collector.getTextContent();
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
