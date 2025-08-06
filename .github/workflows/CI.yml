@@ -12,7 +12,7 @@ jobs:
     needs: Get-CI-Image-Tag
     strategy:
       matrix:
-        java: [17, 21]
+        java: [21]
     runs-on: ubuntu-latest
     container:
       image: ${{ needs.Get-CI-Image-Tag.outputs.ci-image-version-linux }}
