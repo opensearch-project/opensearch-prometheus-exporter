@@ -17,7 +17,6 @@
 package org.opensearch.plugin.prometheus;
 
 import com.carrotsearch.randomizedtesting.annotations.ThreadLeakScope;
-import org.apache.hc.core5.http.Header;
 import org.apache.hc.core5.http.io.entity.EntityUtils;
 import org.apache.hc.core5.http.ParseException;
 import org.opensearch.action.admin.cluster.node.info.NodeInfo;
