@@ -6,32 +6,19 @@ import java.util.regex.Pattern
 
 buildscript {
     ext {
-        // Four {digit(s)} concatenated with a "." followed by -rc{digit(s)}
-        // Examples: 1.0.0.1-rc2, 2.10.4.0-rc5
-        // Group (3) refers to the last .{digit{(s)} pattern (this is what we want to remove for OpS version)
-        final Pattern RC_pattern = Pattern.compile(/([0-9](\.[0-9]+){2})(\.[0-9]+)(-rc[0-9]+)$/)
-
-        // Four {digit(s)} concatenated with a "." followed by null or -SNAPSHOT
-        // Examples: 1.0.0.1, 2.10.4.0-SNAPSHOT
-        // Group (3) refers to the last .{digit{(s)} pattern (this is what we want to remove for OpS version)
-        final Pattern OTHER_pattern = Pattern.compile(/([0-9](\.[0-9]+){2})(\.[0-9]+)(|-SNAPSHOT)$/)
-
-        String opensearch_version
-        String plugin_version = version
-
-        Matcher rc_matcher = RC_pattern.matcher(plugin_version)
-        Matcher other_matcher = OTHER_pattern.matcher(plugin_version)
-
-        println("Identifing version of OpenSearch based on plugin version")
-        if (rc_matcher.find()) {
-            opensearch_version = rc_matcher.group(1) + rc_matcher.group(4)
-        } else if (other_matcher.find()) {
-            opensearch_version = other_matcher.group(1)
-        } else {
-            throw new InvalidUserDataException("Invalid plugin version [" + version + "] in gradle.properties file.")
+        isSnapshot = "true" == System.getProperty("build.snapshot", "true")
+        opensearch_version = System.getProperty("opensearch.version", "3.2.0-SNAPSHOT")
+        buildVersionQualifier = System.getProperty("build.version_qualifier", "")
+        version_tokens = opensearch_version.tokenize('-')
+        opensearch_build = version_tokens[0] + '.0'
+        if (buildVersionQualifier) {
+            opensearch_build += "-${buildVersionQualifier}"
         }
-        println("- OpenSearch version: " + opensearch_version)
-        println("- Prometheus exporter plugin version: " + plugin_version)
+        if (isSnapshot) {
+            opensearch_build += "-SNAPSHOT"
+        }
+        common_utils_version = System.getProperty("common_utils.version", opensearch_build)
+        kotlin_version = System.getProperty("kotlin.version", "2.2.0")
 
         versions = [
                 "opensearch": opensearch_version,
