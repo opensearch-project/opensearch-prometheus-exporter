@@ -13,7 +13,7 @@ jobs:
     name: Generate Mixin
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         ref: mixin
     - uses: Homebrew/actions/setup-homebrew@master
