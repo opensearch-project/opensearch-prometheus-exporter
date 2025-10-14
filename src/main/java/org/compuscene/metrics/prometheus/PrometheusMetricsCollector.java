@@ -640,14 +640,14 @@ public class PrometheusMetricsCollector {
     private void updateIngestMetrics(Tuple<String, String> nodeInfo, IngestStats is) {
         if (is != null) {
             catalog.setNodeGauge(nodeInfo, "ingest_total_count", is.getTotalStats().getCount());
-            catalog.setNodeGauge(nodeInfo, "ingest_total_time_seconds", is.getTotalStats().getTotalTimeInMillis() / 1000.0);
+            catalog.setNodeGauge(nodeInfo, "ingest_total_time_seconds", is.getTotalStats().getTotalTime() / 1000.0);
             catalog.setNodeGauge(nodeInfo, "ingest_total_current", is.getTotalStats().getCurrent());
             catalog.setNodeGauge(nodeInfo, "ingest_total_failed_count", is.getTotalStats().getFailedCount());
 
             for (IngestStats.PipelineStat st : is.getPipelineStats()) {
                 String pipeline = st.getPipelineId();
                 catalog.setNodeGauge(nodeInfo, "ingest_pipeline_total_count", st.getStats().getCount(), pipeline);
-                catalog.setNodeGauge(nodeInfo, "ingest_pipeline_total_time_seconds", st.getStats().getTotalTimeInMillis() / 1000.0, pipeline);
+                catalog.setNodeGauge(nodeInfo, "ingest_pipeline_total_time_seconds", st.getStats().getTotalTime() / 1000.0, pipeline);
                 catalog.setNodeGauge(nodeInfo, "ingest_pipeline_total_current", st.getStats().getCurrent(), pipeline);
                 catalog.setNodeGauge(nodeInfo, "ingest_pipeline_total_failed_count", st.getStats().getFailedCount(), pipeline);
 
@@ -656,7 +656,7 @@ public class PrometheusMetricsCollector {
                     for (IngestStats.ProcessorStat ps : pss) {
                         String processor = ps.getName();
                         catalog.setNodeGauge(nodeInfo, "ingest_pipeline_processor_total_count", ps.getStats().getCount(), pipeline, processor);
-                        catalog.setNodeGauge(nodeInfo, "ingest_pipeline_processor_total_time_seconds", ps.getStats().getTotalTimeInMillis() / 1000.0, pipeline, processor);
+                        catalog.setNodeGauge(nodeInfo, "ingest_pipeline_processor_total_time_seconds", ps.getStats().getTotalTime() / 1000.0, pipeline, processor);
                         catalog.setNodeGauge(nodeInfo, "ingest_pipeline_processor_total_current", ps.getStats().getCurrent(), pipeline, processor);
                         catalog.setNodeGauge(nodeInfo, "ingest_pipeline_processor_total_failed_count", ps.getStats().getFailedCount(), pipeline, processor);
                     }

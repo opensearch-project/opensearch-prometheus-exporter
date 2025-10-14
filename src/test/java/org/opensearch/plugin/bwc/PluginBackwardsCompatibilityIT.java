@@ -34,8 +34,8 @@ import java.util.stream.Collectors;
  */
 public class PluginBackwardsCompatibilityIT extends OpenSearchRestTestCase {
 
-    public static final Version BWCVersion = Version.V_3_1_0;
-    public static final Version NewVersion = Version.V_3_2_0;
+    public static final Version BWCVersion = Version.V_3_2_0;
+    public static final Version NewVersion = Version.V_3_3_0;
 
     private static final ClusterType CLUSTER_TYPE = ClusterType.parse(System.getProperty("tests.rest.bwcsuite"));
     private static final String CLUSTER_NAME = System.getProperty("tests.clustername");
