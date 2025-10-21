@@ -37,6 +37,7 @@ NOTE: OpenSearch plugins much match _exactly_ in major.minor.path version to the
 |      2.0.1 |     2.0.1.0 | July 12, 2022 |
 |      2.0.0 |     2.0.0.0 |  May 27, 2022 |
 |  2.0.0-rc1 | 2.0.0.0-rc1 |  May 19, 2022 |
+|     1.3.20 |    1.3.20.0 |  Oct 21, 2025 |
 |     1.3.19 |    1.3.19.0 |  Sep 25, 2024 |
 |     1.3.18 |    1.3.18.0 |  Sep 25, 2024 |
 |     1.3.17 |    1.3.17.0 |  Jun 26, 2024 |
