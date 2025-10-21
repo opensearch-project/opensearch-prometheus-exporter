@@ -40,7 +40,7 @@ This plugin was started as a fork of [Prometheus exporter for Elasticsearch®](h
 
 | OpenSearch |   Plugin | Release date |
 |-----------:|---------:|-------------:|
-|     1.3.20 | 1.3.20.0 | Sep 19, 2025 |
+|     1.3.20 | 1.3.20.0 | Oct 21, 2025 |
 |     1.3.19 | 1.3.19.0 | Sep 25, 2024 |
 |     1.3.18 | 1.3.18.0 | Sep 25, 2024 |
 |     1.3.17 | 1.3.17.0 | Jun 26, 2024 |
