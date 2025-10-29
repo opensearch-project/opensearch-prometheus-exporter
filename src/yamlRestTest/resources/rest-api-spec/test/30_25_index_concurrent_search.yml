@@ -41,3 +41,13 @@
         ,\} \s+ \d+\.\d+
         .*/
 
+  # Test indices_search_concurrent_avg_slice_count
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_indices_search_concurrent_avg_slice_count \s Average \s slice \s count \s per \s concurrent \s segment \s search \s request \n
+        \# \s TYPE \s opensearch_indices_search_concurrent_avg_slice_count \s gauge \n
+        opensearch_indices_search_concurrent_avg_slice_count\{
+            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+        ,\} \s+ \d+\.\d+
+        .*/

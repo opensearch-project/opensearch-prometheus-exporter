@@ -198,6 +198,7 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_search_concurrent_query_count", "Count of search queries that use concurrent segment search");
         catalog.registerNodeGauge("indices_search_concurrent_query_current_number", "Current rate of search queries that use concurrent segment search");
         catalog.registerNodeGauge("indices_search_concurrent_query_time_seconds", "Time spent on search queries that use concurrent segment search");
+        catalog.registerNodeGauge("indices_search_concurrent_avg_slice_count", "Average slice count per concurrent segment search request");
 
         catalog.registerNodeGauge("indices_merges_current_number", "Current rate of merges");
         catalog.registerNodeGauge("indices_merges_current_docs_number", "Current rate of documents merged");
@@ -297,6 +298,7 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_search_concurrent_query_current_number", idx.getSearch().getTotal().getConcurrentQueryCurrent());
             catalog.setNodeGauge(nodeInfo,"indices_search_concurrent_query_time_seconds",
                     idx.getSearch().getTotal().getConcurrentQueryTimeInMillis() / 1000.0);
+            catalog.setNodeGauge(nodeInfo,"indices_search_concurrent_avg_slice_count", idx.getSearch().getTotal().getConcurrentAvgSliceCount());
 
             catalog.setNodeGauge(nodeInfo,"indices_merges_current_number", idx.getMerge().getCurrent());
             catalog.setNodeGauge(nodeInfo,"indices_merges_current_docs_number", idx.getMerge().getCurrentNumDocs());
