@@ -1,6 +1,6 @@
 # Compatibility Matrix
 
-NOTE: OpenSearch plugins much match _exactly_ in major.minor.patch version to the OpenSearch instance it's running in, e.g. plugins versions 2.8.0.x work only with OpenSearch 2.8.0, see also [Opensearch Plugins](https://docs.opensearch.org/docs/latest/install-and-configure/plugins/). Therefore you must keep your [opensearch-prometheus-exporter version](https://github.com/opensearch-project/opensearch-prometheus-exporter/releases) in sync with your OpenSearch version.
+NOTE: OpenSearch plugins much match _exactly_ in major.minor.patch version to the OpenSearch instance it's running in, e.g. plugins versions 2.8.0.x work only with OpenSearch 2.8.0, see also [Opensearch Plugins](https://docs.opensearch.org/latest/install-and-configure/plugins/). Therefore you must keep your [opensearch-prometheus-exporter version](https://github.com/opensearch-project/opensearch-prometheus-exporter/releases) in sync with your OpenSearch version.
 
 | OpenSearch |      Plugin |  Release date |
 |-----------:|------------:|--------------:|
