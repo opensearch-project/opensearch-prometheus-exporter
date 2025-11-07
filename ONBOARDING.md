@@ -61,7 +61,7 @@ There are more than 100 [GitHub repositories](https://github.com/orgs/opensearch
 Looking for answers? While [the forum](https://forum.opensearch.org/) and [Slack](https://opensearch.org/slack.html) are always a good option, it's worth checking these first.
 
 - [Frequently Asked Questions](https://opensearch.org/faq).
-- [User Documentation](https://docs.opensearch.org/docs/latest).
+- [User Documentation](https://docs.opensearch.org/latest).
 - Developer Documentation
   - Start with `DEVELOPER_GUIDE.md` in the repository you'll be working in (see [OpenSearch](https://github.com/opensearch-project/OpenSearch/blob/main/DEVELOPER_GUIDE.md) or [OpenSearch Dashboards](https://github.com/opensearch-project/OpenSearch-Dashboards/blob/main/DEVELOPER_GUIDE.md) guides).
   - Most repositories have many other documentation files. To find them, search for Markdown files (`*.md` - [example](https://github.com/search?q=repo%3Aopensearch-project%2FOpenSearch-Dashboards+language%3AMarkdown&type=code&l=Markdown)), either on GitHub or in your editor.
