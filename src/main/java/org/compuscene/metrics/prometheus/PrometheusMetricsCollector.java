@@ -121,7 +121,7 @@ public class PrometheusMetricsCollector {
 
             catalog.setClusterGauge("cluster_shards_number", chr.getActiveShards(), "active");
             catalog.setClusterGauge("cluster_shards_number", chr.getActivePrimaryShards(), "active_primary");
-            catalog.setClusterGauge("cluster_shards_number", chr.getDelayedUnassignedShards(), "unassigned");
+            catalog.setClusterGauge("cluster_shards_number", chr.getDelayedUnassignedShards(), "delayed_unassigned");
             catalog.setClusterGauge("cluster_shards_number", chr.getInitializingShards(), "initializing");
             catalog.setClusterGauge("cluster_shards_number", chr.getRelocatingShards(), "relocating");
             catalog.setClusterGauge("cluster_shards_number", chr.getUnassignedShards(), "unassigned");
