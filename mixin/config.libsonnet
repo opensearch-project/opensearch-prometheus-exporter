@@ -39,7 +39,7 @@
     //   - High watermark - 90% used capacity (default)
     //
     // Disk allocation thresholds (low, high watermarks) can be changed using REST API:
-    // https://opensearch.org/latest/opensearch/popular-api/#change-disk-watermarks-or-other-cluster-settings
+    // https://opensearch.org/latest/popular-api/#change-disk-watermarks-or-other-cluster-settings
     oseDiskLowWaterMark: 85,
     oseDiskHighWaterMark: 90,
 
