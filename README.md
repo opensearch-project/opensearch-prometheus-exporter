@@ -108,7 +108,7 @@ Metrics include statistics about individual OpenSearch nodes.
 By default, only statistics from the node that received the request are included.
 
 Prometheus exporter can be configured to include statistics from other nodes as well.
-This filter is directly utilizing OpenSearch [Node filters](https://docs.opensearch.org/docs/latest/api-reference/nodes-apis/index/#node-filters) feature.
+This filter is directly utilizing OpenSearch [Node filters](https://docs.opensearch.org/latest/api-reference/nodes-apis/index/#node-filters) feature.
 Default value: `"_local"`.
 
 For example to get stats for all cluster nodes from any node use settings:
