@@ -27,7 +27,7 @@ This repository contains two projects that are related, but each can be used ind
 
 ## Introduction
 
-This plugin was started as a fork of [Prometheus exporter for Elasticsearch®](https://github.com/vvanholl/elasticsearch-prometheus-exporter) (it was forked in version 7.10.2.0; commit hash: [8dc7f85](https://github.com/vvanholl/elasticsearch-prometheus-exporter/commit/8dc7f85109fe1601a68010e9de598a9b131afd02)) utilizing [OpenSearch plugin template](https://github.com/opensearch-project/opensearch-plugin-template-java). It uses the official [Prometheus Java Simpleclient](https://github.com/prometheus/client_java/tree/simpleclient).
+This plugin was started as a fork of the Prometheus exporter for Elasticsearch® by @vvanholl (it was forked in version 7.10.2.0; commit hash: 8dc7f85) utilizing [OpenSearch plugin template](https://github.com/opensearch-project/opensearch-plugin-template-java). It uses the official [Prometheus Java Simpleclient](https://github.com/prometheus/client_java/tree/simpleclient).
 
 **Currently, the available metrics are:**
 
