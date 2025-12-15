@@ -459,17 +459,19 @@ public class PrometheusMetricsCollector {
             for (Map.Entry<String, IndexStats> entry : isr.getIndices().entrySet()) {
                 String indexName = entry.getKey();
                 ClusterIndexHealth cih = chr.getIndices().get(indexName);
-                catalog.setClusterGauge("index_status", cih.getStatus().value(), indexName);
-                catalog.setClusterGauge("index_replicas_number", cih.getNumberOfReplicas(), indexName);
-                catalog.setClusterGauge("index_shards_number", cih.getActiveShards(), "active", indexName);
-                catalog.setClusterGauge("index_shards_number", cih.getNumberOfShards(), "shards", indexName);
-                catalog.setClusterGauge("index_shards_number", cih.getActivePrimaryShards(), "active_primary", indexName);
-                catalog.setClusterGauge("index_shards_number", cih.getInitializingShards(), "initializing", indexName);
-                catalog.setClusterGauge("index_shards_number", cih.getRelocatingShards(), "relocating", indexName);
-                catalog.setClusterGauge("index_shards_number", cih.getUnassignedShards(), "unassigned", indexName);
-                IndexStats indexStats = entry.getValue();
-                updatePerIndexContextMetrics(indexName, "total", indexStats.getTotal());
-                updatePerIndexContextMetrics(indexName, "primaries", indexStats.getPrimaries());
+                if (cih != null) {
+                    catalog.setClusterGauge("index_status", cih.getStatus().value(), indexName);
+                    catalog.setClusterGauge("index_replicas_number", cih.getNumberOfReplicas(), indexName);
+                    catalog.setClusterGauge("index_shards_number", cih.getActiveShards(), "active", indexName);
+                    catalog.setClusterGauge("index_shards_number", cih.getNumberOfShards(), "shards", indexName);
+                    catalog.setClusterGauge("index_shards_number", cih.getActivePrimaryShards(), "active_primary", indexName);
+                    catalog.setClusterGauge("index_shards_number", cih.getInitializingShards(), "initializing", indexName);
+                    catalog.setClusterGauge("index_shards_number", cih.getRelocatingShards(), "relocating", indexName);
+                    catalog.setClusterGauge("index_shards_number", cih.getUnassignedShards(), "unassigned", indexName);
+                    IndexStats indexStats = entry.getValue();
+                    updatePerIndexContextMetrics(indexName, "total", indexStats.getTotal());
+                    updatePerIndexContextMetrics(indexName, "primaries", indexStats.getPrimaries());
+                }
             }
         }
     }
