@@ -9,7 +9,7 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 
 | Maintainer        | GitHub ID                                               | Affiliation |
 | ----------------- | ------------------------------------------------------- | ----------- |
-| Lukas Vlcek       | [lukas-vlcek](https://github.com/lukas-vlcek)           | Aiven       |
+| Lukáš Vlček       | [lukas-vlcek](https://github.com/lukas-vlcek)           | Independent |
 | Karsten Schnitter | [KarstenSchnitter](https://github.com/KarstenSchnitter) | SAP         |
 | Samuel Herman     | [sam-herman](https://github.com/sam-herman)             | Datastax    |
 | Shenoy Pratik     | [ps48](https://github.com/ps48)                         | Amazon      |
