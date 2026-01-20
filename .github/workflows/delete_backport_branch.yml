@@ -12,7 +12,7 @@ jobs:
     if: github.repository == 'opensearch-project/opensearch-prometheus-exporter' && startsWith(github.event.pull_request.head.ref,'backport/')
     steps:
     - name: Delete merged branch
-      uses: actions/github-script@v7
+      uses: actions/github-script@v8
       with:
         script: |
           github.rest.git.deleteRef({
