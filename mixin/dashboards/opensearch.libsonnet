@@ -89,6 +89,10 @@ local clusterHealthHistoryPanel =
   + panel.timeSeries.fieldConfig.defaults.custom.withDrawStyle('bars')
   + panel.timeSeries.fieldConfig.defaults.custom.withFillOpacity(100)
   + panel.timeSeries.fieldConfig.defaults.custom.stacking.withMode('percent')
+  + panel.timeSeries.fieldConfig.defaults.custom.withAxisPlacement('hidden')
+  + panel.timeSeries.standardOptions.withUnit('none')
+  + panel.timeSeries.standardOptions.withMin(0)
+  + panel.timeSeries.standardOptions.withMax(100)
   + panel.timeSeries.standardOptions.withOverrides([
     { matcher: { id: 'byName', options: 'GREEN' }, properties: [{ id: 'color', value: { mode: 'fixed', fixedColor: 'green' } }] },
     { matcher: { id: 'byName', options: 'YELLOW' }, properties: [{ id: 'color', value: { mode: 'fixed', fixedColor: 'yellow' } }] },
@@ -102,6 +106,7 @@ local clusterNodesPanel =
   + panel.stat.queryOptions.withTargets([
     promQuery('max(opensearch_cluster_nodes_number{cluster="$cluster"})'),
   ])
+  + panel.stat.options.withGraphMode('none')
   + { gridPos: { w: 4, h: 4 } };
 
 local clusterDataNodesPanel =
@@ -110,6 +115,7 @@ local clusterDataNodesPanel =
   + panel.stat.queryOptions.withTargets([
     promQuery('max(opensearch_cluster_datanodes_number{cluster="$cluster"})'),
   ])
+  + panel.stat.options.withGraphMode('none')
   + { gridPos: { w: 4, h: 4 } };
 
 local clusterPendingTasksPanel =
@@ -118,6 +124,7 @@ local clusterPendingTasksPanel =
   + panel.stat.queryOptions.withTargets([
     promQuery('max(opensearch_cluster_pending_tasks_number{cluster="$cluster"})'),
   ])
+  + panel.stat.options.withGraphMode('none')
   + { gridPos: { w: 4, h: 4 } };
 
 // ==========================================
