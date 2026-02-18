@@ -4,12 +4,12 @@
     {
       "source": {
         "git": {
-          "remote": "https://github.com/grafana/grafonnet-lib.git",
-          "subdir": "grafonnet"
+          "remote": "https://github.com/grafana/grafonnet.git",
+          "subdir": "gen/grafonnet-latest"
         }
       },
-      "version": "master"
+      "version": "main"
     }
   ],
-  "legacyImports": true
+  "legacyImports": false
 }

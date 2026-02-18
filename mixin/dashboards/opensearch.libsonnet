@@ -1,812 +1,522 @@
-local promgrafonnet = import '../lib/promgrafonnet/promgrafonnet.libsonnet';
-local grafana = import 'grafonnet/grafana.libsonnet';
-local dashboard = grafana.dashboard;
-local row = grafana.row;
-local prometheus = grafana.prometheus;
+local g = import 'github.com/grafana/grafonnet/gen/grafonnet-latest/main.libsonnet';
 
-local graphPanel = grafana.graphPanel;
+local var = g.dashboard.variable;
+local panel = g.panel;
+local query = g.query;
 
-local singlestat = grafana.singlestat;
+// Helper to create Prometheus query target
+local promQuery(expr, legendFormat='') =
+  query.prometheus.new('$datasource', expr)
+  + query.prometheus.withLegendFormat(legendFormat)
+  + query.prometheus.withIntervalFactor(2);
 
+// Base timeSeries panel with default styling (matching original dashboard)
+local timeSeriesBase =
+  panel.timeSeries.fieldConfig.defaults.custom.withShowPoints('never')
+  + panel.timeSeries.fieldConfig.defaults.custom.withFillOpacity(10);
+
+// ==========================================
+// Variables
+// ==========================================
+local variables = [
+  var.datasource.new('datasource', 'prometheus'),
+
+  var.custom.new('interval', ['15s', '30s', '1m', '5m', '1h', '6h', '1d'])
+  + var.custom.generalOptions.withLabel('Interval')
+  + var.custom.generalOptions.withCurrent('1m'),
+
+  var.query.new('cluster', 'label_values(opensearch_cluster_status, cluster)')
+  + var.query.withDatasource('prometheus', '$datasource')
+  + var.query.generalOptions.withLabel('Cluster')
+  + var.query.withSort(1)
+  + var.query.withRefresh(1),
+
+  var.query.new('node', 'label_values(opensearch_jvm_uptime_seconds{cluster="$cluster"}, node)')
+  + var.query.withDatasource('prometheus', '$datasource')
+  + var.query.generalOptions.withLabel('Node')
+  + var.query.withSort(1)
+  + var.query.withRefresh(1)
+  + var.query.selectionOptions.withIncludeAll(true),
+
+  var.query.new('shard_type', 'label_values(opensearch_cluster_shards_number, type)')
+  + var.query.withDatasource('prometheus', '$datasource')
+  + var.query.generalOptions.withLabel('Shard')
+  + var.query.generalOptions.showOnDashboard.withNothing()
+  + var.query.withSort(1)
+  + var.query.withRefresh(1)
+  + var.query.selectionOptions.withIncludeAll(true),
+
+  var.query.new('pool_name', 'label_values(opensearch_threadpool_tasks_number, name)')
+  + var.query.withDatasource('prometheus', '$datasource')
+  + var.query.generalOptions.withLabel('Threadpool Type name')
+  + var.query.generalOptions.showOnDashboard.withNothing()
+  + var.query.withSort(1)
+  + var.query.withRefresh(1)
+  + var.query.selectionOptions.withIncludeAll(true),
+];
+
+// ==========================================
+// Cluster Row Panels
+// ==========================================
+local clusterStatusPanel =
+  panel.stat.new('Cluster status')
+  + panel.stat.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.stat.queryOptions.withTargets([
+    promQuery('max(opensearch_cluster_status{cluster="$cluster"})'),
+  ])
+  + panel.stat.options.withColorMode('background')
+  + panel.stat.options.withGraphMode('none')
+  + panel.stat.standardOptions.withMappings([
+    { type: 'value', options: { '0': { text: 'GREEN', color: 'green' } } },
+    { type: 'value', options: { '1': { text: 'YELLOW', color: 'yellow' } } },
+    { type: 'value', options: { '2': { text: 'RED', color: 'red' } } },
+  ])
+  + { gridPos: { w: 4, h: 4 } };
+
+local clusterHealthHistoryPanel =
+  panel.timeSeries.new('Cluster Health History')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('(opensearch_cluster_status{cluster="$cluster"} == 0) + 1', 'GREEN')
+    + query.prometheus.withIntervalFactor(10),
+    promQuery('(opensearch_cluster_status{cluster="$cluster"} == 1)', 'YELLOW')
+    + query.prometheus.withIntervalFactor(10),
+    promQuery('(opensearch_cluster_status{cluster="$cluster"} == 2) - 1', 'RED')
+    + query.prometheus.withIntervalFactor(10),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(false)
+  + panel.timeSeries.fieldConfig.defaults.custom.withDrawStyle('bars')
+  + panel.timeSeries.fieldConfig.defaults.custom.withFillOpacity(100)
+  + panel.timeSeries.fieldConfig.defaults.custom.stacking.withMode('percent')
+  + panel.timeSeries.fieldConfig.defaults.custom.withAxisPlacement('hidden')
+  + panel.timeSeries.standardOptions.withUnit('none')
+  + panel.timeSeries.standardOptions.withMin(0)
+  + panel.timeSeries.standardOptions.withMax(100)
+  + panel.timeSeries.standardOptions.withOverrides([
+    { matcher: { id: 'byName', options: 'GREEN' }, properties: [{ id: 'color', value: { mode: 'fixed', fixedColor: 'green' } }] },
+    { matcher: { id: 'byName', options: 'YELLOW' }, properties: [{ id: 'color', value: { mode: 'fixed', fixedColor: 'yellow' } }] },
+    { matcher: { id: 'byName', options: 'RED' }, properties: [{ id: 'color', value: { mode: 'fixed', fixedColor: 'red' } }] },
+  ])
+  + { gridPos: { w: 8, h: 4 } };
+
+local clusterNodesPanel =
+  panel.stat.new('Nodes')
+  + panel.stat.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.stat.queryOptions.withTargets([
+    promQuery('max(opensearch_cluster_nodes_number{cluster="$cluster"})'),
+  ])
+  + panel.stat.options.withGraphMode('none')
+  + { gridPos: { w: 4, h: 4 } };
+
+local clusterDataNodesPanel =
+  panel.stat.new('Data nodes')
+  + panel.stat.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.stat.queryOptions.withTargets([
+    promQuery('max(opensearch_cluster_datanodes_number{cluster="$cluster"})'),
+  ])
+  + panel.stat.options.withGraphMode('none')
+  + { gridPos: { w: 4, h: 4 } };
+
+local clusterPendingTasksPanel =
+  panel.stat.new('Pending tasks')
+  + panel.stat.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.stat.queryOptions.withTargets([
+    promQuery('max(opensearch_cluster_pending_tasks_number{cluster="$cluster"})'),
+  ])
+  + panel.stat.options.withGraphMode('none')
+  + { gridPos: { w: 4, h: 4 } };
+
+// ==========================================
+// Shards Row Panels
+// ==========================================
+local shardsTypePanel =
+  panel.timeSeries.new('$shard_type shards')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('max(opensearch_cluster_shards_number{cluster="$cluster",type="$shard_type"})'),
+  ])
+  + panel.timeSeries.panelOptions.withRepeat('shard_type')
+  + panel.timeSeries.panelOptions.withRepeatDirection('h')
+  + { gridPos: { w: 4, h: 6 } };
+
+// ==========================================
+// Threadpools Row Panels
+// ==========================================
+local threadpoolTypePanel =
+  panel.timeSeries.new('$pool_name tasks')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('max(opensearch_threadpool_tasks_number{cluster="$cluster",name="$pool_name"})'),
+  ])
+  + panel.timeSeries.panelOptions.withRepeat('pool_name')
+  + panel.timeSeries.panelOptions.withRepeatDirection('h')
+  + { gridPos: { w: 4, h: 6 } };
+
+// ==========================================
+// System Row Panels
+// ==========================================
+local systemCpuUsagePanel =
+  panel.timeSeries.new('CPU usage')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_os_cpu_percent{cluster="$cluster", node=~"$node"}', '{{node}}'),
+  ])
+  + panel.timeSeries.standardOptions.withUnit('percent')
+  + panel.timeSeries.standardOptions.withMin(0)
+  + panel.timeSeries.standardOptions.withMax(100)
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+local systemMemoryUsagePanel =
+  panel.timeSeries.new('Memory usage')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_os_mem_used_bytes{cluster="$cluster", node=~"$node"}', '{{node}}'),
+  ])
+  + panel.timeSeries.standardOptions.withUnit('bytes')
+  + panel.timeSeries.standardOptions.withMin(0)
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+local systemDiskUsagePanel =
+  panel.timeSeries.new('Disk usage')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('1 - opensearch_fs_path_available_bytes{cluster="$cluster",node=~"$node"} / opensearch_fs_path_total_bytes{cluster="$cluster",node=~"$node"}', '{{node}} - {{path}}'),
+  ])
+  + panel.timeSeries.standardOptions.withUnit('percentunit')
+  + panel.timeSeries.standardOptions.withMin(0)
+  + panel.timeSeries.standardOptions.withMax(1)
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + panel.timeSeries.fieldConfig.defaults.custom.withThresholdsStyle({ mode: 'area' })
+  + panel.timeSeries.standardOptions.thresholds.withMode('absolute')
+  + panel.timeSeries.standardOptions.thresholds.withSteps([
+      { color: 'green', value: null },
+      { color: 'yellow', value: 0.8 },
+      { color: 'red', value: 0.9 },
+  ])
+  + { gridPos: { w: 8, h: 8 } };
+
+// ==========================================
+// Documents and Latencies Row Panels
+// ==========================================
+local documentsIndexingRatePanel =
+  panel.timeSeries.new('Documents indexing rate')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_indexing_index_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+local indexingLatencyPanel =
+  panel.timeSeries.new('Indexing latency')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_indexing_index_time_seconds{cluster="$cluster", node=~"$node"}[$interval]) / rate(opensearch_indices_indexing_index_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+local searchRatePanel =
+  panel.timeSeries.new('Search rate')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_search_query_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+local searchLatencyPanel =
+  panel.timeSeries.new('Search latency')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_search_query_time_seconds{cluster="$cluster", node=~"$node"}[$interval]) / rate(opensearch_indices_search_query_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+local documentsCountPanel =
+  panel.timeSeries.new('Documents count (with replicas)')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_indices_doc_number{cluster="$cluster", node=~"$node"}', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + panel.timeSeries.fieldConfig.defaults.custom.withFillOpacity(30)
+  + { gridPos: { w: 8, h: 8 } };
+
+local documentsDeletingRatePanel =
+  panel.timeSeries.new('Documents deleting rate')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_doc_deleted_number{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+local documentsMergingRatePanel =
+  panel.timeSeries.new('Documents merging rate')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_merges_total_docs_count{cluster="$cluster",node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+// ==========================================
+// Caches Row Panels
+// ==========================================
+local cacheFieldDataMemSizePanel =
+  panel.timeSeries.new('Field data memory size')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_indices_fielddata_memory_size_bytes{cluster="$cluster", node=~"$node"}', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 12, h: 8 } };
+
+local cacheFieldDataEvictionsPanel =
+  panel.timeSeries.new('Field data evictions')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_fielddata_evictions_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 12, h: 8 } };
+
+local cacheQuerySizePanel =
+  panel.timeSeries.new('Query cache size')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_indices_querycache_cache_size_bytes{cluster="$cluster", node=~"$node"}', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+local cacheQueryEvictionsPanel =
+  panel.timeSeries.new('Query cache evictions')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_querycache_evictions_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+local cacheQueryHitsPanel =
+  panel.timeSeries.new('Query cache hits')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_querycache_hit_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+local cacheQueryMissesPanel =
+  panel.timeSeries.new('Query cache misses')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_querycache_miss_number{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 6, h: 8 } };
+
+// ==========================================
+// Throttling Row Panels
+// ==========================================
+local throttlingIndexingPanel =
+  panel.timeSeries.new('Indexing throttling')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_indexing_throttle_time_seconds{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 12, h: 8 } };
+
+local throttlingMergingPanel =
+  panel.timeSeries.new('Merging throttling')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indices_merges_total_throttled_time_seconds{cluster="$cluster", node=~"$node"}[$interval])', '{{node}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 12, h: 8 } };
+
+// ==========================================
+// JVM Row Panels
+// ==========================================
+local jvmHeapUsedPanel =
+  panel.timeSeries.new('Heap used')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_jvm_mem_heap_used_bytes{cluster="$cluster", node=~"$node"}', '{{node}} - heap used'),
+  ])
+  + panel.timeSeries.standardOptions.withUnit('bytes')
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+local jvmGCCountPanel =
+  panel.timeSeries.new('GC count')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_jvm_gc_collection_count{cluster="$cluster",node=~"$node"}[$interval])', '{{node}} - {{gc}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+local jvmGCTimePanel =
+  panel.timeSeries.new('GC time')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_jvm_gc_collection_time_seconds{cluster="$cluster", node=~"$node"}[$interval])', '{{node}} - {{gc}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+// ==========================================
+// Rows
+// ==========================================
+local clusterRow = panel.row.new('Cluster');
+local shardsRow = panel.row.new('Shards');
+local threadpoolsRow = panel.row.new('Threadpools');
+local systemRow = panel.row.new('System');
+local docsAndLatenciesRow = panel.row.new('Documents and Latencies');
+local cachesRow = panel.row.new('Caches');
+local throttlingRow = panel.row.new('Throttling');
+local jvmRow = panel.row.new('JVM');
+
+// ==========================================
+// Dashboard
+// ==========================================
 {
   grafanaDashboards+:: {
     'opensearch.json':
+      g.dashboard.new('OpenSearch')
+      + g.dashboard.withUid('opensearch-mixin')
+      + g.dashboard.withEditable(true)
+      + g.dashboard.withVariables(variables)
+      + g.dashboard.time.withFrom('now-3h')
+      + g.dashboard.graphTooltip.withSharedCrosshair()
+      + g.dashboard.withPanels(
+        g.util.grid.wrapPanels([
+          // Cluster row
+          clusterRow,
+          clusterStatusPanel,
+          clusterHealthHistoryPanel,
+          clusterNodesPanel,
+          clusterDataNodesPanel,
+          clusterPendingTasksPanel,
 
-      // ==========================================
-      // Cluster row
-      // ==========================================
-      local clusterStatusGraph =
-        singlestat.new(
-          'Cluster status',
-          datasource='$datasource',
-          span=2
-        ).addTarget(
-          prometheus.target(
-            'max(opensearch_cluster_status{cluster="$cluster"})'
-          )
-        ) + {
-          colorBackground: true,
-          colors: [
-            'rgba(50, 172, 45, 0.97)',
-            'rgba(255, 166, 0, 0.89)',
-            'rgba(245, 54, 54, 0.9)',
-          ],
-          thresholds: '1,2',
-          valueMaps: [
-            {
-              op: '=',
-              text: 'GREEN',
-              value: '0',
-            },
-            {
-              op: '=',
-              text: 'YELLOW',
-              value: '1',
-            },
-            {
-              op: '=',
-              text: 'RED',
-              value: '2',
-            },
-          ],
-        };
+          // Shards row
+          shardsRow,
+          shardsTypePanel,
 
-      // Histogram seem to require a lot of graphPanel customization.
-      // We shall consider creating a new component for it.
-      local clusterHealthHistoryGraph =
-        graphPanel.new(
-          null,
-          span=4,
-          datasource='$datasource',
-        ).addTarget(
-          prometheus.target(
-            '(opensearch_cluster_status{cluster="$cluster"} == 0) + 1',
-            legendFormat='GREEN',
-            intervalFactor=10,
-          )
-        ).addTarget(
-          prometheus.target(
-            '(opensearch_cluster_status{cluster="$cluster"} == 1)',
-            legendFormat='YELLOW',
-            intervalFactor=10,
-          )
-        ).addTarget(
-          prometheus.target(
-            '(opensearch_cluster_status{cluster="$cluster"} == 2) - 1',
-            legendFormat='RED',
-            intervalFactor=10,
-          )
-        ) + {
-          stack: true,
-          bars: true,
-          fill: 10,
-          lines: false,
-          percentage: true,
-          legend: {
-            alignAsTable: false,
-            avg: false,
-            current: false,
-            max: false,
-            min: false,
-            rightSide: false,
-            show: false,
-            total: false,
-            values: false,
-          },
-          seriesOverrides: [
-            {
-              alias: 'GREEN',
-              color: 'rgba(50, 172, 45, 0.97)',
-            },
-            {
-              alias: 'YELLOW',
-              color: 'rgba(255, 166, 0, 0.89)',
-            },
-            {
-              alias: 'RED',
-              color: 'rgba(245, 54, 54, 0.9)',
-            },
-          ],
-          yaxes: [
-            {
-              format: 'none',
-              label: null,
-              logBase: 1,
-              max: '100',
-              min: '0',
-              show: false,
-            },
-            {
-              format: 'short',
-              label: null,
-              logBase: 1,
-              max: null,
-              min: null,
-              show: false,
-            },
-          ],
-        };
+          // Threadpools row
+          threadpoolsRow,
+          threadpoolTypePanel,
 
-      local clusterNodesGraph =
-        singlestat.new(
-          'Nodes',
-          datasource='$datasource',
-          span=2
-        ).addTarget(
-          prometheus.target(
-            'max(opensearch_cluster_nodes_number{cluster="$cluster"})'
-          )
-        );
+          // System row
+          systemRow,
+          systemCpuUsagePanel,
+          systemMemoryUsagePanel,
+          systemDiskUsagePanel,
 
-      local clusterDataNodesGraph =
-        singlestat.new(
-          'Data nodes',
-          datasource='$datasource',
-          span=2
-        ).addTarget(
-          prometheus.target(
-            'max(opensearch_cluster_datanodes_number{cluster="$cluster"})'
-          )
-        );
+          // Documents and Latencies row
+          docsAndLatenciesRow,
+          documentsIndexingRatePanel,
+          indexingLatencyPanel,
+          searchRatePanel,
+          searchLatencyPanel,
+          documentsCountPanel,
+          documentsDeletingRatePanel,
+          documentsMergingRatePanel,
 
-      local clusterPendingTasksGraph =
-        singlestat.new(
-          'Pending tasks',
-          datasource='$datasource',
-          span=2
-        ).addTarget(
-          prometheus.target(
-            'max(opensearch_cluster_pending_tasks_number{cluster="$cluster"})'
-          )
-        );
+          // Caches row
+          cachesRow,
+          cacheFieldDataMemSizePanel,
+          cacheFieldDataEvictionsPanel,
+          cacheQuerySizePanel,
+          cacheQueryEvictionsPanel,
+          cacheQueryHitsPanel,
+          cacheQueryMissesPanel,
 
-      local clusterRow = row.new(
-        height='100',
-        title='Cluster',
-      ).addPanel(clusterStatusGraph)
-                         .addPanel(clusterHealthHistoryGraph)
-                         .addPanel(clusterNodesGraph)
-                         .addPanel(clusterDataNodesGraph)
-                         .addPanel(clusterPendingTasksGraph);
+          // Throttling row
+          throttlingRow,
+          throttlingIndexingPanel,
+          throttlingMergingPanel,
 
-
-      // ==========================================
-      // Shards row
-      // ==========================================
-      local shardsTypeGraph =
-        graphPanel.new(
-          '_OVERRIDE_ shards',
-          span=2.4,
-          datasource='$datasource',
-        ).addTarget(
-          prometheus.target(
-            'max(opensearch_cluster_shards_number{cluster="$cluster",type="$shard_type"})'
-          )
-        ) + {
-          title: '$shard_type shards',
-          repeat: 'shard_type',
-          repeatDirection: 'h',
-        };
-
-      local shardsRow = row.new(
-        height='200',
-        title='Shards',
-      ).addPanel(shardsTypeGraph);
-
-
-      // ==========================================
-      // Threadpools row
-      // Cumulative number of processed requests per threadpool name/type
-      // ==========================================
-      local threadloopTypeGraph =
-        graphPanel.new(
-          '_OVERRIDE_ completed',
-          span=2.4,
-          datasource='$datasource',
-        ).addTarget(
-          prometheus.target(
-            'max(opensearch_threadpool_tasks_number{cluster="$cluster",name="$pool_name"})'
-          )
-        ) + {
-          title: '$pool_name tasks',
-          repeat: 'pool_name',
-          repeatDirection: 'h',
-        };
-
-      local threadpools = row.new(
-        height='200',
-        title='Threadpools',
-      ).addPanel(threadloopTypeGraph);
-
-
-      // ==========================================
-      // System row
-      // ==========================================
-      local systemCpuUsageGraph =
-        graphPanel.new(
-          'CPU usage',
-          span=4,
-          datasource='$datasource',
-          format='percent',
-          min=0,
-          max=100,
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('opensearch_os_cpu_percent{cluster="$cluster", node=~"$node"}', legendFormat='{{node}}')
-        );
-
-      local systemMemoryUsageGraph =
-        graphPanel.new(
-          'Memory usage',
-          span=4,
-          datasource='$datasource',
-          format='bytes',
-          min=0,
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('opensearch_os_mem_used_bytes{cluster="$cluster", node=~"$node"}', legendFormat='{{node}}')
-        );
-
-      local systemDiskUsageGraph =
-        graphPanel.new(
-          'Disk usage',
-          span=4,
-          datasource='$datasource',
-          format='percentunit',
-          min=0,
-          max=1,
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('1 - opensearch_fs_path_available_bytes{cluster="$cluster",node=~"$node"} / opensearch_fs_path_total_bytes{cluster="$cluster",node=~"$node"}', legendFormat='{{node}} - {{path}}')
-        ) + {
-          thresholds: [
-            {
-              colorMode: 'custom',
-              fill: true,
-              fillColor: 'rgba(216, 200, 27, 0.27)',
-              op: 'gt',
-              value: 0.8,
-            },
-            {
-              colorMode: 'custom',
-              fill: true,
-              fillColor: 'rgba(234, 112, 112, 0.22)',
-              op: 'gt',
-              value: 0.9,
-            },
-          ],
-        };
-
-      local systemRow = row.new(
-        height='400',
-        title='System',
-      ).addPanel(systemCpuUsageGraph)
-                        .addPanel(systemMemoryUsageGraph)
-                        .addPanel(systemDiskUsageGraph);
-
-
-      // ==========================================
-      // Documents and Latencies row
-      // ==========================================
-      local documentsIndexingRateGraph =
-        graphPanel.new(
-          'Documents indexing rate',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_indexing_index_count{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local indexingLatencyGraph =
-        graphPanel.new(
-          'Indexing latency',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_indexing_index_time_seconds{cluster="$cluster", node=~"$node"}[$interval]) / rate(opensearch_indices_indexing_index_count{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local searchRateGraph =
-        graphPanel.new(
-          'Search rate',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_search_query_count{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local searchLatencyGraph =
-        graphPanel.new(
-          'Search latency',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_search_query_time_seconds{cluster="$cluster", node=~"$node"}[$interval]) / rate(opensearch_indices_search_query_count{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local documentsCountIncReplicasGraph =
-        graphPanel.new(
-          'Documents count (with replicas)',
-          span=4,
-          // min=0,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('opensearch_indices_doc_number{cluster="$cluster", node=~"$node"}', legendFormat='{{node}}')
-        ) + {
-          fill: 3,
-          tooltip: {
-            shared: true,
-            sort: 2,
-            value_type: 'individual',
-          },
-        };
-
-      local documentsDeletingRateGraph =
-        graphPanel.new(
-          'Documents deleting rate',
-          span=4,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_doc_deleted_number{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local documentsMergingRateGraph =
-        graphPanel.new(
-          'Documents merging rate',
-          span=4,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_merges_total_docs_count{cluster="$cluster",node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local docsAndLatenciesRow = row.new(
-        height='400',
-        title='Documents and Latencies',
-      ).addPanel(documentsIndexingRateGraph)
-                                  .addPanel(indexingLatencyGraph)
-                                  .addPanel(searchRateGraph)
-                                  .addPanel(searchLatencyGraph)
-                                  .addPanel(documentsCountIncReplicasGraph)
-                                  .addPanel(documentsDeletingRateGraph)
-                                  .addPanel(documentsMergingRateGraph);
-
-
-      // ==========================================
-      // Caches row
-      // ==========================================
-      local cacheFieldDataMemSizeGraph =
-        graphPanel.new(
-          'Field data memory size',
-          span=6,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('opensearch_indices_fielddata_memory_size_bytes{cluster="$cluster", node=~"$node"}', legendFormat='{{node}}')
-        );
-
-      local cacheFieldDataEvictionsGraph =
-        graphPanel.new(
-          'Field data evictions',
-          span=6,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_fielddata_evictions_count{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local cacheQuerySizeGraph =
-        graphPanel.new(
-          'Query cache size',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('opensearch_indices_querycache_cache_size_bytes{cluster="$cluster", node=~"$node"}', legendFormat='{{node}}')
-        );
-
-      local cacheQueryEvictionsGraph =
-        graphPanel.new(
-          'Query cache evictions',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_querycache_evictions_count{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local cacheQueryHitsGraph =
-        graphPanel.new(
-          'Query cache hits',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_querycache_hit_count{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local cacheQueryMissesGraph =
-        graphPanel.new(
-          'Query cache misses',
-          span=3,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_querycache_miss_number{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local cachesRow = row.new(
-        height='400',
-        title='Caches',
-      ).addPanel(cacheFieldDataMemSizeGraph)
-                        .addPanel(cacheFieldDataEvictionsGraph)
-                        .addPanel(cacheQuerySizeGraph)
-                        .addPanel(cacheQueryEvictionsGraph)
-                        .addPanel(cacheQueryHitsGraph)
-                        .addPanel(cacheQueryMissesGraph);
-
-
-      // ==========================================
-      // Throttling row
-      // ==========================================
-      local throttlingIndexingGraph =
-        graphPanel.new(
-          'Indexing throttling',
-          span=6,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_indexing_throttle_time_seconds{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local throttlingMergingGraph =
-        graphPanel.new(
-          'Merging throttling',
-          span=6,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_indices_merges_total_throttled_time_seconds{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}}')
-        );
-
-      local throttlingRow = row.new(
-        height='400',
-        title='Throttling',
-      ).addPanel(throttlingIndexingGraph)
-                            .addPanel(throttlingMergingGraph);
-
-
-      // ==========================================
-      // JVM row
-      // ==========================================
-      local jvmHeapUsedGraph =
-        graphPanel.new(
-          'Heap used',
-          span=4,
-          datasource='$datasource',
-          format='bytes',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('opensearch_jvm_mem_heap_used_bytes{cluster="$cluster", node=~"$node"}', legendFormat='{{node}} - heap used')
-        );
-
-      local jvmGCcountGraph =
-        graphPanel.new(
-          'GC count',
-          span=4,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_jvm_gc_collection_count{cluster="$cluster",node=~"$node"}[$interval])', legendFormat='{{node}} - {{gc}}')
-        );
-
-      local jvmGCTimeGraph =
-        graphPanel.new(
-          'GC time',
-          span=4,
-          datasource='$datasource',
-          legend_alignAsTable=true,
-          legend_avg=true,
-          legend_current=true,
-          legend_max=true,
-          legend_min=true,
-          legend_hideEmpty=false,
-          legend_hideZero=false,
-          legend_values=true,
-        ).addTarget(
-          prometheus.target('rate(opensearch_jvm_gc_collection_time_seconds{cluster="$cluster", node=~"$node"}[$interval])', legendFormat='{{node}} - {{gc}}')
-        );
-
-      local jvmRow = row.new(
-        height='400',
-        title='JVM',
-      ).addPanel(jvmHeapUsedGraph)
-                     .addPanel(jvmGCcountGraph)
-                     .addPanel(jvmGCTimeGraph);
-
-
-      // ==========================================
-      dashboard.new('OpenSearch', time_from='now-3h')
-      .addTemplate(
-        {
-          current: {
-            text: 'Prometheus',
-            value: 'Prometheus',
-          },
-          hide: 0,
-          label: null,
-          name: 'datasource',
-          options: [],
-          query: 'prometheus',
-          refresh: 1,
-          regex: '',
-          type: 'datasource',
-        },
-      ).addTemplate(
-        {
-          allValue: null,
-          current: {
-            tags: [],
-            text: '1m',
-            value: '1m',
-          },
-          datasource: 'prometheus',
-          hide: 0,
-          includeAll: false,
-          label: 'Interval',
-          multi: false,
-          name: 'interval',
-          options: [
-            {
-              selected: false,
-              text: '15s',
-              value: '15s',
-            },
-            {
-              selected: false,
-              text: '30s',
-              value: '30s',
-            },
-            {
-              selected: true,
-              text: '1m',
-              value: '1m',
-            },
-            {
-              selected: false,
-              text: '5m',
-              value: '5m',
-            },
-            {
-              selected: false,
-              text: '1h',
-              value: '1h',
-            },
-            {
-              selected: false,
-              text: '6h',
-              value: '6h',
-            },
-            {
-              selected: false,
-              text: '1d',
-              value: '1d',
-            },
-          ],
-          query: '15s, 30s, 1m, 5m, 1h, 6h, 1d',
-          refresh: 0,
-          type: 'custom',
-        }
-      ).addTemplate(
-        {
-          hide: 0,
-          datasource: '$datasource',
-          label: 'Cluster',
-          name: 'cluster',
-          query: 'label_values(opensearch_cluster_status, cluster)',
-          refresh: 1,
-          regex: '',
-          type: 'query',
-          sort: 1,
-          includeAll: false,
-        }
-      ).addTemplate(
-        {
-          hide: 0,
-          datasource: '$datasource',
-          label: 'Node',
-          name: 'node',
-          query: 'label_values(opensearch_jvm_uptime_seconds{cluster="$cluster"}, node)',
-          refresh: 1,
-          regex: '',
-          type: 'query',
-          sort: 1,
-          includeAll: true,
-        }
-      ).addTemplate(
-        {
-          hide: 2,
-          datasource: '$datasource',
-          label: 'Shard',
-          name: 'shard_type',
-          query: 'label_values(opensearch_cluster_shards_number, type)',
-          refresh: 1,
-          regex: '',
-          type: 'query',
-          sort: 1,
-          includeAll: true,
-        }
-      ).addTemplate(
-        {
-          hide: 2,
-          datasource: '$datasource',
-          label: 'Threadpool Type name',
-          name: 'pool_name',
-          query: 'label_values(opensearch_threadpool_tasks_number, name)',
-          refresh: 1,
-          regex: '',
-          type: 'query',
-          sort: 1,
-          includeAll: true,
-        }
-      )
-      .addRow(clusterRow)
-      .addRow(shardsRow)
-      .addRow(threadpools)
-      .addRow(systemRow)
-      .addRow(docsAndLatenciesRow)
-      .addRow(cachesRow)
-      .addRow(throttlingRow)
-      .addRow(jvmRow)
-      + {
-        graphTooltip: 1,
-      },
-
+          // JVM row
+          jvmRow,
+          jvmHeapUsedPanel,
+          jvmGCCountPanel,
+          jvmGCTimePanel,
+        ], panelWidth=8, panelHeight=8)
+      ),
   },
 }
