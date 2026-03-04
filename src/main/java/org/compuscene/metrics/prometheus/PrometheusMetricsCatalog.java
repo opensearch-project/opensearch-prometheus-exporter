@@ -47,7 +47,7 @@ public class PrometheusMetricsCatalog {
 
     /**
      *
-     * @param clusterName   ame of the OpenSearch cluster
+     * @param clusterName   Name of the OpenSearch cluster
      * @param metricPrefix  A value that is automatically used as a prefix for all registered and set metrics
      */
     public PrometheusMetricsCatalog(String clusterName, String metricPrefix) {
