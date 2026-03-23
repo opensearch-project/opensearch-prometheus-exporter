@@ -25,7 +25,7 @@ import org.opensearch.common.settings.Settings;
 
 /**
  * Dynamically updatable Prometheus exporter settings.
- *
+ * <p>
  * These settings are part of the cluster state available via
  * <pre>{@code
  * curl <opensearch>/_cluster/settings?include_defaults=true&filter_path=defaults.prometheus
@@ -43,7 +43,7 @@ public class PrometheusSettings {
         /** See {@link IndicesOptions#strictExpandOpenAndForbidClosed()}  */
         STRICT_EXPAND_OPEN_FORBID_CLOSED,
         /**
-         * Note: There is a missing static method in the upstream.
+         * Note: There is a missing static method in the upstream (should be fixed in OpenSearch 3.6.0).
          * Tracks <a href="https://github.com/opensearch-project/OpenSearch/issues/20963">OpenSearch issue #20963</a>.
          */
         STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED,
@@ -104,10 +104,10 @@ public class PrometheusSettings {
                     Setting.Property.Dynamic, Setting.Property.NodeScope);
 
     /**
-     * This setting determines name expansion mechanism for matching indices.
+     * This setting determines an index name expansion mechanism for matching indices.
      * The default value is {@link INDEX_FILTER_OPTIONS#STRICT_EXPAND_OPEN_FORBID_CLOSED}.
      * Can be configured in <code>opensearch.yml</code> file or updated dynamically under key {@link #PROMETHEUS_SELECTED_OPTION_KEY}.
-     *
+     * <p>
      * See {@link IndicesOptions} for more information.
      */
     public static final Setting<INDEX_FILTER_OPTIONS> PROMETHEUS_SELECTED_OPTION =
@@ -204,6 +204,7 @@ public class PrometheusSettings {
                 indicesOptions = IndicesOptions.strictExpandOpenAndForbidClosed();
                 break;
             case STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED:
+                //indicesOptions = IndicesOptions.strictExpandOpenHiddenAndForbidClosed(); // from OpenSearch 3.6.0
                 indicesOptions = IndicesOptions.STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED;
                 break;
             case STRICT_EXPAND_OPEN_FORBID_CLOSED_IGNORE_THROTTLED:

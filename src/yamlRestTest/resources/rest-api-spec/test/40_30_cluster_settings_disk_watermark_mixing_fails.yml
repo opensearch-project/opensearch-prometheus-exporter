@@ -1,0 +1,60 @@
+---
+"Cluster settings: watermark type mixing fails":
+
+  # -----------------------------------
+  # Cluster does not allow mixing different types of disk watermarks.
+  #
+  # By default "cluster.routing.allocation.disk.watermark.*" settings are set to '1b'.
+  # See: org.opensearch.gradle.testclusters.OpenSearchNode.java
+  # See: org.opensearch.gradle.test.ClusterFormationTasks.groovy (also to '1b').
+
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+
+  - match: {persistent: {}}
+  - match: {transient: {}}
+  - match: {defaults.cluster.routing.allocation.disk.watermark.low: "1b"}
+  - match: {defaults.cluster.routing.allocation.disk.watermark.high: "1b"}
+  - match: {defaults.cluster.routing.allocation.disk.watermark.flood_stage: "1b"}
+
+  # -----------------------------------
+  # Setup custom persistent disk watermarks:
+  - do:
+      catch: /failed to parse setting \[cluster\.routing\.allocation\.disk\.watermark\.high\] with value \[99\.9\%\] as a size in bytes/
+      cluster.put_settings:
+        body:
+          persistent:
+            cluster.routing.allocation.disk.watermark.low: "5b"
+            cluster.routing.allocation.disk.watermark.high: "99.9%"
+        flat_settings: true
+
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+
+  - match: {transient: {}}
+  # If mixing were possible, we would expect the following settings to be set:
+  #- match: {persistent.cluster.routing.allocation.disk.watermark.low: "5b"}
+  #- match: {persistent.cluster.routing.allocation.disk.watermark.high: "99.9%"}
+  #- match: {persistent.cluster.routing.allocation.disk.watermark.flood_stage: null}
+  #
+  # But because changing settings failed, we expect the default values:
+  - match: {persistent: {}}
+  - match: {defaults.cluster.routing.allocation.disk.watermark.low: "1b"}
+  - match: {defaults.cluster.routing.allocation.disk.watermark.high: "1b"}
+  - match: {defaults.cluster.routing.allocation.disk.watermark.flood_stage: "1b"}
+
+  # Clean up the cluster state.
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.routing.allocation.disk.watermark.low: null
+            cluster.routing.allocation.disk.watermark.high: null
+            cluster.routing.allocation.disk.watermark.flood_stage: null
+          persistent:
+            cluster.routing.allocation.disk.watermark.low: null
+            cluster.routing.allocation.disk.watermark.high: null
+            cluster.routing.allocation.disk.watermark.flood_stage: null
+        flat_settings: true

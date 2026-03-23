@@ -34,8 +34,8 @@ import java.io.IOException;
 
 /**
  * Action response class for Prometheus Exporter plugin.
- * This class a container of other responses that are needed to construct list of all required metrics. It knows how to
- * prepare all data for wire transport by writing it into outputStream.
+ * This class is a container of other responses that are needed to construct a list of all required metrics. It knows how to
+ * prepare all data for wire transport by writing it into the {@link StreamOutput}.
  */
 public class NodePrometheusMetricsResponse extends ActionResponse {
     private final ClusterHealthResponse clusterHealth;
@@ -45,9 +45,9 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private ClusterStatsData clusterStatsData = null;
 
     /**
-     * A constructor that materialize the instance from inputStream.
+     * A constructor that materializes the instance from {@link StreamInput}.
      * @param in inputStream
-     * @throws IOException if there is an exception reading from inputStream
+     * @throws IOException if there is an exception reading from {@link StreamInput}
      */
     public NodePrometheusMetricsResponse(StreamInput in) throws IOException {
         super(in);

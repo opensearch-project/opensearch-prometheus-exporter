@@ -2,8 +2,8 @@
 "Cluster settings statistics: disk threshold":
 
   # -----------------------------------
-  # By default cluster.routing.allocation.disk.threshold_enabled is set to true.
-  # https://www.elastic.co/guide/en/elasticsearch/reference/master/disk-allocator.html
+  # By default "cluster.routing.allocation.disk.threshold_enabled" setting is set to 'true'.
+  # See: org.opensearch.cluster.routing.allocation.DiskThresholdSettings
   # OOTB there are no transient or persistent settings in the cluster:
   - do:
       cluster.get_settings:

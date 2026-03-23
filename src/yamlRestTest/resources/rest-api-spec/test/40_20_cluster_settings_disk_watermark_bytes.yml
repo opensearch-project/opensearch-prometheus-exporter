@@ -2,12 +2,10 @@
 "Cluster settings statistics: watermark":
 
   # -----------------------------------
-  # By default cluster.routing.allocation.disk.watermark.* are set according to:
-  # https://www.elastic.co/guide/en/elasticsearch/reference/master/disk-allocator.html
-  # ---
-  # However, the REST test framework sets these settings in ClusterFormationTasks.groovy to '1b'.
-  # Or see buildSrc/src/main/java/org/elasticsearch/gradle/testclusters/ElasticsearchNode.java
-  # Things seems to be still moving in Elasticsearch...
+  # By default "cluster.routing.allocation.disk.watermark.*" settings are set to '1b'.
+  # See: org.opensearch.gradle.testclusters.OpenSearchNode.java
+  # See: org.opensearch.gradle.test.ClusterFormationTasks.groovy (also to '1b').
+
   - do:
       cluster.get_settings:
         include_defaults: true
@@ -167,10 +165,97 @@
         (\n \# \s (HELP|TYPE).* | \s*)
         /
 
-  # Clean up the cluster state. See https://github.com/vvanholl/elasticsearch-prometheus-exporter/issues/154
+  # -----------------------------------
+  # Now define transient watermark values:
   - do:
       cluster.put_settings:
         body:
+          transient:
+            cluster.routing.allocation.disk.watermark.low: "50.0%"
+            cluster.routing.allocation.disk.watermark.high: "50.0%"
+            cluster.routing.allocation.disk.watermark.flood_stage: "50.0%"
+        flat_settings: true
+
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+
+  - match: {transient.cluster.routing.allocation.disk.watermark.low: "50.0%"}
+  - match: {transient.cluster.routing.allocation.disk.watermark.high: "50.0%"}
+  - match: {transient.cluster.routing.allocation.disk.watermark.flood_stage: "50.0%"}
+
+  - match: {persistent.cluster.routing.allocation.disk.watermark.low: "99.9%"}
+  - match: {persistent.cluster.routing.allocation.disk.watermark.high: "99.9%"}
+  - match: {persistent.cluster.routing.allocation.disk.watermark.flood_stage: "99.9%"}
+
+  # Verify in Prometheus metrics:
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_disk_watermark_low_pct (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_disk_watermark_low_pct \s gauge \n
+        opensearch_cluster_routing_allocation_disk_watermark_low_pct\{
+            cluster="yamlRestTest"
+        \,} \s 50\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_disk_watermark_high_pct (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_disk_watermark_high_pct \s gauge \n
+        opensearch_cluster_routing_allocation_disk_watermark_high_pct\{
+            cluster="yamlRestTest"
+        \,} \s 50\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_disk_watermark_flood_stage_pct (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_disk_watermark_flood_stage_pct \s gauge \n
+        opensearch_cluster_routing_allocation_disk_watermark_flood_stage_pct\{
+            cluster="yamlRestTest"
+        \,} \s 50\.0 \n?
+        .*/
+
+  # At the same time all bytes alternatives do not report any metric values but they are still present.
+  # This is recommended, see https://prometheus.io/docs/practices/instrumentation/#avoid-missing-metrics
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_disk_watermark_low_bytes (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_disk_watermark_low_bytes \s gauge
+        (\n \# \s (HELP|TYPE).* | \s*)
+        /
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_disk_watermark_high_bytes (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_disk_watermark_high_bytes \s gauge
+        (\n \# \s (HELP|TYPE).* | \s*)
+        /
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_disk_watermark_flood_stage_bytes (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_disk_watermark_flood_stage_bytes \s gauge
+        (\n \# \s (HELP|TYPE).* | \s*)
+        /
+
+  # Clean up the cluster state.
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.routing.allocation.disk.watermark.low: null
+            cluster.routing.allocation.disk.watermark.high: null
+            cluster.routing.allocation.disk.watermark.flood_stage: null
           persistent:
             cluster.routing.allocation.disk.watermark.low: null
             cluster.routing.allocation.disk.watermark.high: null

@@ -48,7 +48,7 @@ import org.opensearch.transport.TransportService;
  * Transport action class for Prometheus Exporter plugin.
  *
  * It performs several requests within the cluster to gather "cluster health", "local nodes info", "nodes stats", "indices stats"
- * and "cluster state" (i.e. cluster settings) info. Some of those requests are optional depending on plugin
+ * and "cluster state" (i.e., cluster settings) info. Some of those requests are optional depending on plugin
  * settings.
  */
 public class TransportNodePrometheusMetricsAction extends HandledTransportAction<NodePrometheusMetricsRequest,
@@ -109,24 +109,21 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         // All the requests are executed in sequential non-blocking order.
         // It is implemented by wrapping each individual request with ActionListener
         // and chaining all of them into a sequence. The last member of the chain call method that gathers
-        // all the responses from previous requests and pass them to outer listener (i.e. calling client).
+        // all the responses from previous requests and passes them to outer listener (i.e., calling client).
         // Optional requests are skipped.
         //
-        // In the future we might consider executing all the requests in parallel if needed (CountDownLatch?),
-        // however, some of the requests can impact cluster performance (especially if the cluster is already overloaded)
-        // and in this situation it is better to run all requests in predictable order so that collected metrics
+        // In the future we might consider executing all requests in parallel if needed (CountDownLatch?),
+        // however, some requests can impact cluster performance (especially if the cluster is already overloaded),
+        // and in this situation it is better to execute all requests in predictable order so that collected metrics
         // stay consistent.
         private AsyncAction(ActionListener<NodePrometheusMetricsResponse> listener) {
             this.listener = listener;
 
-            // Note: when using ClusterHealthRequest in Java, it pulls data at the shards level, according to ES source
-            // code comment this is "so it is backward compatible with the transport client behaviour".
-            // hence we are explicit about ClusterHealthRequest level and do not rely on defaults.
-            // https://www.elastic.co/guide/en/elasticsearch/reference/6.4/cluster-health.html#request-params
+            // Do not rely on ClusterHealthRequest defaults and set an explicit level of information.
             this.healthRequest = Requests.clusterHealthRequest().local(true);
             this.healthRequest.level(ClusterHealthRequest.Level.SHARDS);
 
-            // We want to get only the most minimal static info from local node (cluster name, node name and nodeID).
+            // We want to get only the most minimal static info from the local node (cluster name, node name and nodeID).
             this.localNodesInfoRequest = Requests.nodesInfoRequest("_local").clear();
 
             this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
@@ -142,8 +139,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 this.indicesStatsRequest = null;
             }
 
-            // Cluster settings are get via ClusterStateRequest (see elasticsearch RestClusterGetSettingsAction for details)
-            // We prefer to send it to master node (hence local=false; it should be set by default but we want to be sure).
+            // Cluster settings are pulled from the cluster manager node (hence local=false).
             this.clusterStateRequest = isPrometheusClusterSettings ? Requests.clusterStateRequest()
                     .clear().metadata(true).local(false) : null;
         }
