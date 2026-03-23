@@ -35,43 +35,36 @@ import java.io.IOException;
 
 /**
  * Selected settings from OpenSearch cluster settings.
- *
- * Disk-based shard allocation [1] settings play important role in how OpenSearch decides where to allocate
+ * <p>
+ * Disk-based shard allocation [1] settings play an important role in how OpenSearch decides where to allocate
  * new shards or if existing shards are relocated to different nodes. The tricky part about these settings is
- * that they can be expressed either in percent or bytes value (they cannot be mixed) and they can be updated on the fly.
- *
- * TODO[lukas-vlcek]: Update docs URL
- * [1] https://www.elastic.co/guide/en/elasticsearch/reference/master/disk-allocator.html#disk-allocator
- *
- * In order to make it easy for Prometheus to consume the data we expose these settings in both formats (pct and bytes)
- * and we do our best in determining if they are currently set as pct or bytes filling appropriate variables with data
- * or null value.
+ * that they can be expressed either in percent or bytes value (they cannot be mixed), and they can be updated
+ * on the fly [2].
+ * <ul>
+ *   <li> [1] <a href="https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/">Cluster Settings ("cluster.routing.allocation.disk.watermark.*")</a></li>
+ *   <li> [2] <a href="https://docs.opensearch.org/latest/api-reference/popular-api/#change-disk-watermarks-or-other-cluster-settings">Change disk watermark</a></li>
+ * </ul>
+ * <p>
+ * To make it easy for Prometheus to consume the data, we expose these settings in both formats (pct and bytes)
+ * and we do our best in determining if they are currently set as pct or bytes filling appropriate variables
+ * with data or null value.
  */
-// TODO(lukas-vlcek): should this extend TransportMessage instead?
 public class ClusterStatsData extends ActionResponse {
 
-    private Boolean thresholdEnabled = null;
+    @Nullable private final Boolean thresholdEnabled;
 
-    @Nullable private Long diskLowInBytes;
-    @Nullable private Long diskHighInBytes;
-    @Nullable private Long floodStageInBytes;
+    @Nullable private final Long diskLowInBytes;
+    @Nullable private final Long diskHighInBytes;
+    @Nullable private final Long floodStageInBytes;
 
-    @Nullable private Double diskLowInPct;
-    @Nullable private Double diskHighInPct;
-    @Nullable private Double floodStageInPct;
-
-    private Long[] diskLowInBytesRef = new Long[]{diskLowInBytes};
-    private Long[] diskHighInBytesRef = new Long[]{diskHighInBytes};
-    private Long[] floodStageInBytesRef = new Long[]{floodStageInBytes};
-
-    private Double[] diskLowInPctRef = new Double[]{diskLowInPct};
-    private Double[] diskHighInPctRef = new Double[]{diskHighInPct};
-    private Double[] floodStageInPctRef = new Double[]{floodStageInPct};
+    @Nullable private final Double diskLowInPct;
+    @Nullable private final Double diskHighInPct;
+    @Nullable private final Double floodStageInPct;
 
     /**
      * A constructor.
-     * @param in A streamInput to materialize the instance from
-     * @throws IOException if reading from streamInput is not successful
+     * @param in A {@link StreamInput} to materialize the instance from
+     * @throws IOException if reading from {@link StreamInput} is not successful
      */
     public ClusterStatsData(StreamInput in) throws IOException {
         super(in);
@@ -89,61 +82,85 @@ public class ClusterStatsData extends ActionResponse {
     @SuppressWarnings({"checkstyle:LineLength"})
     ClusterStatsData(ClusterStateResponse clusterStateResponse, Settings settings, ClusterSettings clusterSettings) {
 
-        Metadata m = clusterStateResponse.getState().getMetadata();
-        // There are several layers of cluster settings in Elasticsearch each having different priority.
-        // We need to traverse them from the top priority down to find relevant value of each setting.
-        // See https://www.elastic.co/guide/en/elasticsearch/reference/master/cluster-update-settings.html#_order_of_precedence
-        // TODO[lukas-vlcek]: update to OpenSearch referenced
-        for (Settings s : new Settings[]{
-                // See: RestClusterGetSettingsAction#response
-                // or: https://github.com/elastic/elasticsearch/pull/33247/files
-                // We do not filter the settings, but we use the clusterSettings.diff()
-                // In the end we expose just a few selected settings ATM.
-                m.transientSettings(),
-                m.persistentSettings(),
-                clusterSettings.diff(m.settings(), settings)
-        }) {
-            thresholdEnabled = thresholdEnabled == null ?
-                    s.getAsBoolean(CLUSTER_ROUTING_ALLOCATION_DISK_THRESHOLD_ENABLED_SETTING.getKey(), null) : thresholdEnabled;
+        Metadata metadata = clusterStateResponse.getState().getMetadata();
 
-            parseValue(s, CLUSTER_ROUTING_ALLOCATION_LOW_DISK_WATERMARK_SETTING.getKey(), diskLowInBytesRef, diskLowInPctRef);
-            parseValue(s, CLUSTER_ROUTING_ALLOCATION_HIGH_DISK_WATERMARK_SETTING.getKey(), diskHighInBytesRef, diskHighInPctRef);
-            parseValue(s, CLUSTER_ROUTING_ALLOCATION_DISK_FLOOD_STAGE_WATERMARK_SETTING.getKey(), floodStageInBytesRef, floodStageInPctRef);
+        Boolean resolvedThresholdEnabled = null;
+        Long resolvedDiskLowInBytes = null;
+        Long resolvedDiskHighInBytes = null;
+        Long resolvedFloodStageInBytes = null;
+        Double resolvedDiskLowInPct = null;
+        Double resolvedDiskHighInPct = null;
+        Double resolvedFloodStageInPct = null;
+
+        // There are several layers of cluster settings in OpenSearch each having different priority.
+        // We need to traverse them from the top priority down to find relevant value of each setting.
+        // See https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/index/#updating-cluster-settings-using-the-api
+        for (Settings currentSettings : new Settings[]{
+                metadata.transientSettings(),
+                metadata.persistentSettings(),
+                clusterSettings.diff(metadata.settings(), settings)
+        }) {
+            if (resolvedThresholdEnabled == null) {
+                resolvedThresholdEnabled = currentSettings.getAsBoolean(
+                        CLUSTER_ROUTING_ALLOCATION_DISK_THRESHOLD_ENABLED_SETTING.getKey(), null);
+            }
+
+            LongValue parsedLow = parseWatermarkValue(
+                    currentSettings,
+                    CLUSTER_ROUTING_ALLOCATION_LOW_DISK_WATERMARK_SETTING.getKey());
+            resolvedDiskLowInBytes = firstNonNull(resolvedDiskLowInBytes, parsedLow.bytes());
+            resolvedDiskLowInPct = firstNonNull(resolvedDiskLowInPct, parsedLow.pct());
+
+            LongValue parsedHigh = parseWatermarkValue(
+                    currentSettings,
+                    CLUSTER_ROUTING_ALLOCATION_HIGH_DISK_WATERMARK_SETTING.getKey());
+            resolvedDiskHighInBytes = firstNonNull(resolvedDiskHighInBytes, parsedHigh.bytes());
+            resolvedDiskHighInPct = firstNonNull(resolvedDiskHighInPct, parsedHigh.pct());
+
+            LongValue parsedFlood = parseWatermarkValue(
+                    currentSettings,
+                    CLUSTER_ROUTING_ALLOCATION_DISK_FLOOD_STAGE_WATERMARK_SETTING.getKey());
+            resolvedFloodStageInBytes = firstNonNull(resolvedFloodStageInBytes, parsedFlood.bytes());
+            resolvedFloodStageInPct = firstNonNull(resolvedFloodStageInPct, parsedFlood.pct());
         }
 
-        diskLowInBytes = diskLowInBytesRef[0];
-        diskHighInBytes = diskHighInBytesRef[0];
-        floodStageInBytes = floodStageInBytesRef[0];
-
-        diskLowInPct = diskLowInPctRef[0];
-        diskHighInPct = diskHighInPctRef[0];
-        floodStageInPct = floodStageInPctRef[0];
+        thresholdEnabled = resolvedThresholdEnabled;
+        diskLowInBytes = resolvedDiskLowInBytes;
+        diskHighInBytes = resolvedDiskHighInBytes;
+        floodStageInBytes = resolvedFloodStageInBytes;
+        diskLowInPct = resolvedDiskLowInPct;
+        diskHighInPct = resolvedDiskHighInPct;
+        floodStageInPct = resolvedFloodStageInPct;
     }
 
-    /**
-     * Try to extract and parse value from settings for given key.
-     * First it tries to parse it as a RatioValue (pct) then as byte size value.
-     * It assigns parsed value to corresponding argument references (passed via array hack).
-     * If parsing fails the method fires exception, however, this should not happen - we rely on Elasticsearch
-     * to already have parsed and validated these values before. Unless we screwed something up...
-     */
-    private void parseValue(Settings s, String key, Long[] bytesPointer, Double[] pctPointer) {
-        String value = s.get(key);
-        if (value != null && pctPointer[0] == null) {
+    private record LongValue(@Nullable Long bytes, @Nullable Double pct) {
+
+        private static LongValue empty() {
+            return new LongValue(null, null);
+        }
+    }
+
+    private LongValue parseWatermarkValue(Settings settings, String key) {
+        String value = settings.get(key);
+        if (value == null) {
+            return LongValue.empty();
+        }
+
+        try {
+            Double pct = RatioValue.parseRatioValue(value).getAsPercent();
+            return new LongValue(null, pct);
+        } catch (SettingsException | OpenSearchParseException | NullPointerException ignored) {
             try {
-                pctPointer[0] = RatioValue.parseRatioValue(s.get(key, null)).getAsPercent();
-            } catch (SettingsException | OpenSearchParseException | NullPointerException e1) {
-                if (bytesPointer[0] == null) {
-                    try {
-                        bytesPointer[0] = s.getAsBytesSize(key, null).getBytes();
-                    } catch (SettingsException | OpenSearchParseException | NullPointerException e2) {
-                        // TODO(lvlcek): log.debug("This went wrong, but 'Keep Calm and Carry On'")
-                        // We should avoid using logs in this class (due to perf impact), instead we should
-                        // consider moving this logic to some static helper class/method going forward.
-                    }
-                }
+                Long bytes = settings.getAsBytesSize(key, null).getBytes();
+                return new LongValue(bytes, null);
+            } catch (SettingsException | OpenSearchParseException | NullPointerException ignoredAgain) {
+                return LongValue.empty();
             }
         }
+    }
+
+    private static <T> T firstNonNull(@Nullable T current, @Nullable T candidate) {
+        return current != null ? current : candidate;
     }
 
     @Override
@@ -163,6 +180,7 @@ public class ClusterStatsData extends ActionResponse {
      * Get value of setting controlled by {@link org.opensearch.cluster.routing.allocation.DiskThresholdSettings#CLUSTER_ROUTING_ALLOCATION_DISK_THRESHOLD_ENABLED_SETTING}.
      * @return A Boolean value of the setting.
      */
+    @Nullable
     public Boolean getThresholdEnabled() {
         return thresholdEnabled;
     }
