@@ -26,24 +26,42 @@ import org.opensearch.common.settings.Settings;
 /**
  * Dynamically updatable Prometheus exporter settings.
  *
- * These settings are part of cluster state available via
+ * These settings are part of the cluster state available via
  * <pre>{@code
  * curl <opensearch>/_cluster/settings?include_defaults=true&filter_path=defaults.prometheus
  * }</pre>
  */
 public class PrometheusSettings {
+    /**
+     * Enum for index name resolution and expansion options.
+     */
     public enum INDEX_FILTER_OPTIONS {
+        /** See {@link IndicesOptions#strictExpandOpen()}  */
         STRICT_EXPAND_OPEN,
+        /** See {@link IndicesOptions#strictExpandOpenHidden()}  */
         STRICT_EXPAND_OPEN_HIDDEN,
+        /** See {@link IndicesOptions#strictExpandOpenAndForbidClosed()}  */
         STRICT_EXPAND_OPEN_FORBID_CLOSED,
+        /**
+         * Note: There is a missing static method in the upstream.
+         * Tracks <a href="https://github.com/opensearch-project/OpenSearch/issues/20963">OpenSearch issue #20963</a>.
+         */
         STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED,
+        /** See {@link IndicesOptions#strictExpandOpenAndForbidClosedIgnoreThrottled()}  */
         STRICT_EXPAND_OPEN_FORBID_CLOSED_IGNORE_THROTTLED,
+        /** See {@link IndicesOptions#strictExpand()} */
         STRICT_EXPAND_OPEN_CLOSED,
+        /** See {@link IndicesOptions#strictExpandHidden()} */
         STRICT_EXPAND_OPEN_CLOSED_HIDDEN,
+        /** See {@link IndicesOptions#strictSingleIndexNoExpandForbidClosed()} */
         STRICT_SINGLE_INDEX_NO_EXPAND_FORBID_CLOSED,
+        /** See {@link IndicesOptions#lenientExpandOpen()} */
         LENIENT_EXPAND_OPEN,
+        /** See {@link IndicesOptions#lenientExpandOpenHidden()} */
         LENIENT_EXPAND_OPEN_HIDDEN,
+        /** See {@link IndicesOptions#lenientExpand()} */
         LENIENT_EXPAND_OPEN_CLOSED,
+        /** See {@link IndicesOptions#lenientExpandHidden()} */
         LENIENT_EXPAND_OPEN_CLOSED_HIDDEN
     }
 
@@ -86,9 +104,11 @@ public class PrometheusSettings {
                     Setting.Property.Dynamic, Setting.Property.NodeScope);
 
     /**
-     * This setting is used configure which option for filtering indices statistics.
-     * The default value is STRICT_EXPAND_OPEN_FORBID_CLOSED.
-     * Can be configured in opensearch.yml file or update dynamically under key {@link #PROMETHEUS_SELECTED_OPTION_KEY}.
+     * This setting determines name expansion mechanism for matching indices.
+     * The default value is {@link INDEX_FILTER_OPTIONS#STRICT_EXPAND_OPEN_FORBID_CLOSED}.
+     * Can be configured in <code>opensearch.yml</code> file or updated dynamically under key {@link #PROMETHEUS_SELECTED_OPTION_KEY}.
+     *
+     * See {@link IndicesOptions} for more information.
      */
     public static final Setting<INDEX_FILTER_OPTIONS> PROMETHEUS_SELECTED_OPTION =
             new Setting<>(PROMETHEUS_SELECTED_OPTION_KEY,
