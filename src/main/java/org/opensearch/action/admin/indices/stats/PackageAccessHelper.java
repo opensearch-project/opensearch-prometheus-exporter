@@ -26,6 +26,12 @@ import java.io.IOException;
 public class PackageAccessHelper {
 
     /**
+     * Default constructor for PackageAccessHelper.
+     */
+    public PackageAccessHelper() {
+    }
+
+    /**
      * Shortcut to IndicesStatsResponse constructor which has package access restriction.
      * @param in StreamInput
      * @return IndicesStatsResponse

@@ -46,6 +46,7 @@ public class PrometheusMetricsCatalog {
     private CollectorRegistry registry;
 
     /**
+     * Creates a new PrometheusMetricsCatalog for the given cluster and metric prefix.
      *
      * @param clusterName   Name of the OpenSearch cluster
      * @param metricPrefix  A value that is automatically used as a prefix for all registered and set metrics

@@ -980,6 +980,8 @@ public class PrometheusMetricsCollector {
     }
 
     /**
+     * Returns all collected metrics as a UTF-8 plain-text string in Prometheus exposition format.
+     *
      * @see PrometheusMetricsCatalog#toTextFormat()
      * @return A text representation of the catalog
      * @throws IOException If creating the text representation goes wrong
