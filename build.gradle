@@ -25,12 +25,7 @@ buildscript {
         maven { url "https://plugins.gradle.org/m2/" }
     }
 
-    configurations {
-        zipArchive
-    }
-
     dependencies {
-        zipArchive group: 'org.opensearch.plugin.prometheus', name:'prometheus-exporter', version: "${versions.opensearch}"
         classpath   "org.opensearch.gradle:build-tools:${versions.opensearch}"
     }
 }
@@ -71,7 +66,10 @@ repositories {
     maven { url "https://ci.opensearch.org/ci/dbc/snapshots/maven/" }
     mavenCentral()
     maven { url "https://plugins.gradle.org/m2/" }
-    jcenter()
+}
+
+configurations {
+    zipArchive
 }
 
 configurations.all {
@@ -79,12 +77,9 @@ configurations.all {
 }
 
 dependencies {
-// Deprecated in Gradle 6.8.1, use "implementation" instead
-// See https://docs.gradle.org/6.8.1/userguide/java_plugin.html#sec:java_plugin_and_dependency_management
-//    compile "io.prometheus:simpleclient:${versions.prometheus}"
-//    compile "io.prometheus:simpleclient_common:${versions.prometheus}"
     implementation group: 'io.prometheus', name: 'simpleclient', version: '0.16.0'
     implementation group: 'io.prometheus', name: 'simpleclient_common', version: '0.16.0'
+    zipArchive group: 'org.opensearch.plugin.prometheus', name:'prometheus-exporter', version: "${versions.opensearch}"
 }
 
 restResources {
@@ -98,7 +93,7 @@ test {
 }
 
 // Print more details if any deprecated APIs are used
-tasks.withType(JavaCompile) {
+tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += ['-Xlint:deprecation']
 }
 
@@ -178,7 +173,7 @@ project.opensearch_version = ext.versions.opensearch
                     }
                 }
             }))
-            setting 'path.repo', "${buildDir}/cluster/shared/repo/${baseName}"
+            setting 'path.repo', "${layout.buildDirectory.get().asFile}/cluster/shared/repo/${baseName}"
             setting 'http.content_type.required', 'true'
         }
     }
