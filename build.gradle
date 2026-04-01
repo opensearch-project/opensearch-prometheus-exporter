@@ -30,10 +30,15 @@ buildscript {
     }
 }
 
+configurations {
+    zipArchive
+}
+
 apply plugin: 'java'
 apply plugin: 'idea'
 apply plugin: 'opensearch.opensearchplugin'
 apply plugin: 'opensearch.yaml-rest-test'
+apply plugin: 'opensearch.pluginzip'
 apply plugin: 'opensearch.java-agent'
 apply plugin: 'checkstyle'
 
@@ -48,6 +53,37 @@ checkstyle {
     showViolations true
     configDirectory.set(rootProject.file("config/checkstyle/"))
 }
+
+publishing {
+    publications {
+        pluginZip(MavenPublication) { publication ->
+            pom {
+                name = pluginName
+                description = pluginDescription
+                licenses {
+                    license {
+                        name = "The Apache License, Version 2.0"
+                        url = "http://www.apache.org/licenses/LICENSE-2.0.txt"
+                    }
+                }
+                developers {
+                    developer {
+                        name = "OpenSearch"
+                        url = "https://github.com/opensearch-project/opensearch-prometheus-exporter"
+                    }
+                }
+            }
+        }
+    }
+}
+
+// Add task dependencies to ensure proper execution order (ie. run PluginZip publication after Nebula publication).
+// However, because 'publishNebulaPublicationToMavenLocal' is disabled (see below) we do not need to specify explicit
+// order of Nebula and PluginZip publications. If for whatever reason we need to enable Nebula publishing as well, we
+// need to uncomment the following lines as well.
+//tasks.named("publishNebulaPublicationToMavenLocal") {
+//    dependsOn(tasks.named("generatePomFileForPluginZipPublication"))
+//}
 
 opensearchplugin {
     name pluginName
@@ -66,6 +102,10 @@ loggerUsageCheck.enabled = false
 
 // No need to validate pom, as we do not upload to maven/sonatype
 validateNebulaPom.enabled = false
+
+// Disable Nebula publication to avoid conflict with pluginZip publication.
+// This means we will get only pom and zip files in maven repository.
+tasks.named("publishNebulaPublicationToMavenLocal").configure { enabled = false }
 
 repositories {
     mavenLocal()

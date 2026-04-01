@@ -6,6 +6,7 @@ The [Prometheus® exporter](https://prometheus.io/docs/instrumenting/writing_exp
 - [Introduction](#introduction)
 - [Compatibility Matrix](#compatibility-matrix)
 - [Install or Remove Plugin](#install-or-remove-plugin)
+- [Deploy Plugin into Local Maven Repository](#deploy-plugin-into-local-maven-repository)
 - [Plugin Configuration](#plugin-configuration)
   - [Static settings](#static-settings) 
   - [Dynamic settings](#dynamic-settings) 
@@ -62,6 +63,15 @@ To **remove** the plugin.
 `./bin/opensearch-plugin remove prometheus-exporter`
 
 For more info about plugin CLI, visit: <https://docs.opensearch.org/latest/install-and-configure/plugins/>
+
+## Deploy Plugin into Local Maven Repository
+
+Plugin can be deployed into local Maven repository using:
+
+```shell
+./gradlew clean build publishToMavenLocal --info
+```
+You can customize maven group coordinates by setting `group` property in `gradle.properties` file.
 
 ## Plugin Configuration
 
