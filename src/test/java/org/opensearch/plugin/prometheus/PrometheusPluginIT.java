@@ -34,6 +34,7 @@ import java.util.Arrays;
 import java.util.Collection;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
+// CS-SUPPRESS-SINGLE: RegexpSingleline supportsDedicatedMasters is an OpenSearch API with no alternative
 @OpenSearchIntegTestCase.ClusterScope(scope = OpenSearchIntegTestCase.Scope.SUITE, numDataNodes = 2, numClientNodes = 0, supportsDedicatedMasters = false)
 public class PrometheusPluginIT extends OpenSearchIntegTestCase {
 
