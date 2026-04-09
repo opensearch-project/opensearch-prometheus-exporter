@@ -35,13 +35,19 @@ apply plugin: 'idea'
 apply plugin: 'opensearch.opensearchplugin'
 apply plugin: 'opensearch.yaml-rest-test'
 apply plugin: 'opensearch.java-agent'
-//apply plugin: 'checkstyle'
+apply plugin: 'checkstyle'
 
 def pluginName = pluginName
 def pluginDescription = pluginDescription
 //def projectPath = 'org.opensearch'
 //def pathToPlugin = 'path.to.plugin'
 def pluginClassName = pluginClassname
+
+checkstyle {
+    toolVersion = '10.12.1'
+    showViolations true
+    configDirectory.set(rootProject.file("config/checkstyle/"))
+}
 
 opensearchplugin {
     name pluginName

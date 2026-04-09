@@ -1,298 +1,229 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0"?>
+<!DOCTYPE module PUBLIC
+        "-//Checkstyle//DTD Checkstyle Configuration 1.3//EN"
+        "https://checkstyle.org/dtds/configuration_1_3.dtd">
+
 <!--
-    Checkstyle-Addons - Additional Checkstyle checks
-    Copyright (c) 2015-2022, the Checkstyle Addons contributors
-
-    This program is free software: you can redistribute it and/or modify it under the
-    terms of the GNU General Public License, version 3, as published by the Free
-    Software Foundation.
-
-    This program is distributed in the hope that it will be useful, but WITHOUT ANY
-    WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-    PARTICULAR PURPOSE. See the GNU General Public License for more details.
-
-    You should have received a copy of the GNU General Public License along with this
-    program.  If not, see http://www.gnu.org/licenses/.
- -->
-<!DOCTYPE module PUBLIC "-//Puppy Crawl//DTD Check Configuration 1.3//EN"
-        "http://www.puppycrawl.com/dtds/configuration_1_3.dtd">
-
+  Checkstyle configuration that checks the sun coding conventions from:
+    - the Java Language Specification at
+      https://docs.oracle.com/javase/specs/jls/se11/html/index.html
+    - the Sun Code Conventions at https://www.oracle.com/java/technologies/javase/codeconventions-contents.html
+    - the Javadoc guidelines at
+      https://www.oracle.com/technical-resources/articles/java/javadoc-tool.html
+    - the JDK Api documentation https://docs.oracle.com/en/java/javase/11/
+    - some best practices
+  Checkstyle is very configurable. Be sure to read the documentation at
+  https://checkstyle.org (or in your downloaded distribution).
+  Most Checks are configurable, be sure to consult the documentation.
+  To completely disable a check, just comment it out or delete it from the file.
+  To suppress certain violations please review suppression filters.
+  Finally, it is worth reading the documentation.
+-->
+<!-- exSUN codestyle check with the additional check for System.out.ptintln -->
 <module name="Checker">
-    <property name="severity" value="warning"/>
-    <property name="charset" value="UTF-8"/>
+    <!--
+        If you set the basedir property below, then all reported file
+        names will be relative to the specified directory. See
+        https://checkstyle.org/config.html#Checker
+        <property name="basedir" value="${basedir}"/>
+    -->
+    <property name="severity" value="ignore"/>
 
-    <module name="NewlineAtEndOfFile">
-        <property name="fileExtensions" value="csv,java,properties,txt,xml"/>
+    <property name="fileExtensions" value="java, properties, xml"/>
+
+    <!-- https://checkstyle.org/config_filters.html#SuppressionFilter -->
+    <module name="SuppressionFilter">
+        <property name="file" value="${org.checkstyle.sun.suppressionfilter.config}"
+                  default="checkstyle-suppressions.xml" />
+        <property name="optional" value="true"/>
     </module>
-    <module name="FileTabCharacter"/>
-    <module name="FileLength">
+
+    <!-- Checks that a package-info.java file exists for each package.     -->
+    <!-- See https://checkstyle.org/config_javadoc.html#JavadocPackage -->
+    <module name="JavadocPackage"/>
+
+    <!-- Checks whether files end with a new line.                        -->
+    <!-- See https://checkstyle.org/config_misc.html#NewlineAtEndOfFile -->
+    <module name="NewlineAtEndOfFile"/>
+
+    <!-- Checks that property files contain the same keys.         -->
+    <!-- See https://checkstyle.org/config_misc.html#Translation -->
+    <module name="Translation"/>
+
+    <!-- Checks for Size Violations.                    -->
+    <!-- See https://checkstyle.org/config_sizes.html -->
+    <module name="FileLength"/>
+    <module name="LineLength">
         <property name="fileExtensions" value="java"/>
-        <property name="severity" value="info"/>
-        <property name="max" value="1500"/>
     </module>
+
+    <!-- Checks for whitespace                               -->
+    <!-- See https://checkstyle.org/config_whitespace.html -->
+    <module name="FileTabCharacter"/>
+
+    <!-- Miscellaneous other checks.                   -->
+    <!-- See https://checkstyle.org/config_misc.html -->
     <module name="RegexpSingleline">
-        <property name="fileExtensions" value="java,properties,txt,xml"/>
-        <property name="severity" value="info"/>
-        <property name="format" value="\S\s{2}\s+$"/>
+        <property name="format" value="\s+$"/>
+        <property name="minimum" value="0"/>
+        <property name="maximum" value="0"/>
         <property name="message" value="Line has trailing spaces."/>
     </module>
-    <module name="JavadocPackage">
-        <property name="allowLegacy" value="false"/>
-    </module>
-<!--    <module name="Header">-->
-<!--        <property name="fileExtensions" value="java"/>-->
-<!--        <property name="headerFile" value="${workspace_loc}/config/java.header"/>-->
-<!--        <property name="ignoreLines" value="1"/>-->
-<!--    </module>-->
-<!--    <module name="Header">-->
-<!--        <property name="fileExtensions" value="xml"/>-->
-<!--        <property name="headerFile" value="${workspace_loc}/config/xml.header"/>-->
-<!--    </module>-->
-<!--    <module name="SuppressionFilter">-->
-<!--        <property name="file" value="${workspace_loc}/config/suppressions.xml"/>-->
-<!--    </module>-->
-    <module name="LineLength">
-        <property name="max" value="120"/>
-        <property name="tabWidth" value="4"/>
-    </module>
+
+    <!-- Checks for Headers                                -->
+    <!-- See https://checkstyle.org/config_header.html   -->
+    <!-- <module name="Header"> -->
+    <!--   <property name="headerFile" value="${checkstyle.header.file}"/> -->
+    <!--   <property name="fileExtensions" value="java"/> -->
+    <!-- </module> -->
 
     <module name="TreeWalker">
-        <property name="tabWidth" value="4"/>
-<!--        <module name="FileContentsHolder"/>-->
 
-        <!-- Naming Conventions -->
-        <module name="LocalVariableName">
-            <property name="format"
-                      value="(?:^[a-z&amp;&amp;[^lo]]$)|(?:^(?:(?:[a-z&amp;&amp;[^ipsm]][A-Z])|(?:[a-z][a-z0-9]))[a-zA-Z0-9]{0,30}$)"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Shorter than 33 characters, start with lowercase letter, not ''o'' or ''l'', no misleading prefixes. The regex: {1}"/>
-        </module>
-        <module name="LocalFinalVariableName">
-            <property name="format"
-                      value="(?:^[a-z&amp;&amp;[^lo]]$)|(?:^(?:(?:[a-z&amp;&amp;[^ipsm]][A-Z])|(?:[a-z][a-z0-9]))[a-zA-Z0-9]{0,30}$)"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Shorter than 33 characters, start with lowercase letter, not ''o'' or ''l'', no misleading prefixes. The regex: {1}"/>
-        </module>
-        <module name="StaticVariableName">
-            <property name="format" value="^s[A-Z][a-zA-Z0-9]{0,30}$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Shorter than 33 characters, prefix ''s'' required. The regex: {1}"/>
-        </module>
-        <module name="ParameterName">
-            <property name="format" value="^p[A-Z][a-zA-Z0-9]{0,30}$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Shorter than 33 characters, prefix ''p'' required. The regex: {1}"/>
-        </module>
-        <module name="MethodTypeParameterName">
-            <property name="format" value="^[A-Z][0-9]?$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Type parameters must be single uppercase letters, optionally followed by a single numeral. The regex: {1}"/>
-        </module>
-        <module name="ClassTypeParameterName">
-            <property name="format" value="^[A-Z][0-9]?$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Type parameters must be single uppercase letters, optionally followed by a single numeral. The regex: {1}"/>
-        </module>
-        <module name="TypeName">
-            <property name="id" value="TypeNameMain"/>
-<!--            <property name="severity" value="error"/>-->
-            <property name="format" value="^[A-Z][a-zA-Z0-9]{0,31}?(?:Exception)?$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Use upper camel case, not longer than 32 characters (41 for exceptions). The regex: {1}"/>
-        </module>
-        <module name="TypeName">
-            <property name="id" value="TypeNameTest"/>
-<!--            <property name="severity" value="error"/>-->
-            <property name="format" value="^[A-Z][a-zA-Z0-9]{0,31}?(?:Exception)?(?:Test)?$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Use upper camel case, not longer than 32 characters (+9 for exceptions, +4 for tests). The regex: {1}"/>
-        </module>
-        <module name="AbstractClassName">
-            <property name="format" value="^Abstract[A-Z].*$"/>
-        </module>
-        <module name="MemberName">
-            <property name="format"
-                      value="(?:^[a-z][a-z0-9][a-zA-Z0-9]{0,30}$)|(?:^[a-z&amp;&amp;[^lps]][A-Z][a-zA-Z0-9]{0,30}$)"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Length must be 2-32 characters, prefix must not be ''l'', ''p'', or ''s''. The regex: {1}"/>
-        </module>
-        <module name="PackageName">
-            <property name="format" value="^[a-z]+(?:\.[a-z][a-z0-9]*)*$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid package name. Use only lowercase a-z and digits, begin each fragment with a letter. The regex: {1}"/>
-        </module>
-        <module name="MethodName">
-            <property name="id" value="MethodNameMain"/>
-            <property name="format" value="^[a-z][a-zA-Z0-9]{0,31}$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Use lower camel case, not longer than 32 characters. The regex: {1}"/>
-        </module>
-        <module name="MethodName">
-            <property name="id" value="MethodNameTest"/>
-            <property name="format" value="^[a-z][a-zA-Z0-9]*(?:_[a-zA-Z0-9]+)*$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Use lower camel case. The regex: {1}"/>
-        </module>
-        <module name="ConstantName">
-            <property name="format" value="^(?=.{1,32}$)[A-Z][A-Z0-9]*(?:_[A-Z0-9]+)*$"/>
-            <message key="name.invalidPattern"
-                     value="''{0}'' is an invalid identifier. Use constant case, not longer than 32 characters. The regex: {1}"/>
-        </module>
-
-        <!-- Formatting -->
-        <module name="AnnotationUseStyle"/>
-        <module name="TypecastParenPad"/>
-        <module name="ParenPad"/>
-        <module name="EmptyForIteratorPad"/>
-        <module name="MethodParamPad"/>
-        <module name="GenericWhitespace"/>
-        <module name="NoWhitespaceBefore"/>
-        <module name="WhitespaceAfter"/>
-        <module name="ArrayTypeStyle"/>
-        <module name="WhitespaceAround"/>
-        <module name="ModifierOrder"/>
-        <module name="NoWhitespaceAfter"/>
-        <module name="NeedBraces"/>
-        <module name="LeftCurly">
-            <property name="option" value="nl"/>
-            <property name="tokens" value="CLASS_DEF,CTOR_DEF,INTERFACE_DEF,METHOD_DEF"/>
-        </module>
-        <module name="LeftCurly">
-            <property name="option" value="eol"/>
-            <property name="tokens" value="LITERAL_DO,LITERAL_ELSE,LITERAL_FINALLY,LITERAL_TRY"/>
-        </module>
-        <module name="RightCurly">
-            <property name="option" value="alone"/>
-        </module>
-        <module name="DeclarationOrder">
-            <property name="ignoreModifiers" value="true"/>
-        </module>
-<!--        <module name="LineLength">-->
-<!--            <property name="max" value="120"/>-->
-<!--            <property name="tabWidth" value="4"/>-->
-<!--        </module>-->
-
-        <!-- Documentation -->
+        <!-- Checks for Javadoc comments.                     -->
+        <!-- See https://checkstyle.org/config_javadoc.html -->
+        <module name="InvalidJavadocPosition"/>
+        <module name="JavadocMethod"/>
         <module name="JavadocType"/>
-        <module name="JavadocMethod">
-            <property name="scope" value="protected"/>
-<!--            <property name="allowUndeclaredRTE" value="true"/>-->
-<!--            <property name="allowThrowsTagsForSubclasses" value="true"/>-->
-<!--            <property name="allowMissingPropertyJavadoc" value="true"/>-->
-<!--            <property name="allowMissingJavadoc" value="true"/>-->
-        </module>
-        <module name="JavadocStyle">
-            <property name="checkEmptyJavadoc" value="true"/>
-            <property name="checkFirstSentence" value="false"/>
-            <property name="checkHtml" value="true"/>
-        </module>
+        <module name="JavadocVariable"/>
+        <module name="JavadocStyle"/>
+        <module name="MissingJavadocMethod"/>
 
-        <!-- Architectural Constraints -->
-        <module name="IllegalImport">
-            <property name="severity" value="error"/>
-            <property name="illegalPkgs" value="com.sun,sun"/>
-        </module>
-        <module name="IllegalType">
-            <property name="illegalClassNames" value="java.util.HashSet, java.util.HashMap, java.util.LinkedHashMap, java.util.LinkedHashSet, java.util.TreeSet, java.util.TreeMap,java.util.GregorianCalendar"/>
-<!--            <property name="format" value="^(?!x)x"/>-->
-        </module>
-        <module name="IllegalToken">
-            <property name="tokens" value="LITERAL_NATIVE"/>
-            <message key="illegal.token" value="Native code is not alllowed (token: ''{0}'')"/>
-        </module>
-        <module name="TodoComment">
-            <property name="format" value="(?i)CHECKSTYLE:O(?:FF|N)"/>
-            <message key="todo.match" value="Illegal checkstyle suppression comment has no effect"/>
-        </module>
+        <!-- Checks for Naming Conventions.                  -->
+        <!-- See https://checkstyle.org/config_naming.html -->
+        <module name="ConstantName"/>
+        <module name="LocalFinalVariableName"/>
+        <module name="LocalVariableName"/>
+        <module name="MemberName"/>
+        <module name="MethodName"/>
+        <module name="PackageName"/>
+        <module name="ParameterName"/>
+        <module name="StaticVariableName"/>
+        <module name="TypeName"/>
 
-        <!-- Metrics -->
-        <module name="AnonInnerLength">
-            <property name="max" value="100"/>
-        </module>
-        <module name="BooleanExpressionComplexity">
-            <property name="max" value="5"/>
-        </module>
-        <module name="ExecutableStatementCount">
-            <property name="max" value="60"/>
-        </module>
-        <module name="NestedTryDepth">
-            <property name="max" value="2"/>
-        </module>
-        <module name="ParameterNumber">
-            <property name="tokens" value="METHOD_DEF"/>
-        </module>
-        <module name="ThrowsCount">
-            <property name="max" value="5"/>
-        </module>
-
-        <!-- Coding Problems -->
-        <module name="AvoidNestedBlocks">
-            <property name="allowInSwitchCase" value="true"/>
-        </module>
-        <module name="AvoidStarImport"/>
-        <module name="AvoidStaticImport"/>
-        <module name="CovariantEquals"/>
-        <module name="DefaultComesLast"/>
-        <module name="EmptyBlock">
-            <property name="option" value="text"/>
-        </module>
-        <module name="EmptyStatement"/>
-        <module name="EqualsAvoidNull"/>
-        <module name="EqualsHashCode"/>
-        <module name="FallThrough"/>
-        <module name="FinalClass"/>
-        <module name="FinalParameters"/>
-        <module name="HiddenField"/>
-        <module name="HideUtilityClassConstructor"/>
-        <module name="IllegalCatch">
-            <property name="illegalClassNames"
-                      value="java.lang.Error,java.lang.Throwable,java.lang.NullPointerException,java.lang.IllegalMonitorStateException"/>
-        </module>
-        <module name="IllegalThrows"/>
-        <module name="IllegalTokenText">
-            <property name="tokens" value="NUM_INT,NUM_LONG"/>
-            <property name="format" value="^0[^blx]"/>
-            <property name="ignoreCase" value="true"/>
-            <property name="message" value="Octal literals are not allowed."/>
-        </module>
-        <module name="InnerAssignment"/>
-        <module name="InterfaceIsType"/>
-        <module name="MagicNumber">
-            <property name="ignoreHashCodeMethod" value="true"/>
-            <property name="ignoreAnnotation" value="true"/>
-        </module>
-        <module name="MissingDeprecated"/>
-        <module name="MissingSwitchDefault"/>
-        <module name="MultipleVariableDeclarations"/>
-        <module name="MutableException"/>
-        <module name="NestedIfDepth">
-            <property name="max" value="5"/>
-        </module>
-        <module name="NoFinalizer">
+        <!-- Checks for imports                              -->
+        <!-- See https://checkstyle.org/config_imports.html -->
+        <module name="AvoidStarImport">
             <property name="severity" value="error"/>
         </module>
-        <module name="OneStatementPerLine"/>
-        <module name="OperatorWrap"/>
-        <module name="OuterTypeNumber">
+        <module name="IllegalImport"> <!-- defaults to sun.* packages -->
+            <property name="severity" value="error"/>
+            <property name="illegalPkgs" value="org.apache.cxf.rs.security.jose"/>
+            <property name="illegalClasses" value="org.apache.hc.core5.http.HttpStatus"/>
+        </module>
+        <module name="RedundantImport">
             <property name="severity" value="error"/>
         </module>
-        <module name="PackageAnnotation"/>
-        <module name="PackageDeclaration"/>
-        <module name="ParameterAssignment"/>
-        <module name="RedundantImport"/>
-        <module name="RedundantModifier">
-            <property name="tokens"
-                      value="METHOD_DEF, VARIABLE_DEF, ANNOTATION_FIELD_DEF, INTERFACE_DEF, CLASS_DEF, ENUM_DEF"/>
-        </module>
-        <module name="SimplifyBooleanExpression"/>
-        <module name="SimplifyBooleanReturn"/>
-        <module name="StringLiteralEquality"/>
-        <module name="SuperClone"/>
         <module name="UnusedImports">
+            <property name="severity" value="error"/>
             <property name="processJavadoc" value="true"/>
         </module>
-        <module name="UpperEll"/>
+
+        <!-- Checks for Size Violations.                    -->
+        <!-- See https://checkstyle.org/config_sizes.html -->
+        <module name="MethodLength"/>
+        <module name="ParameterNumber"/>
+
+        <!-- Checks for whitespace                               -->
+        <!-- See https://checkstyle.org/config_whitespace.html -->
+        <module name="EmptyForIteratorPad"/>
+        <module name="GenericWhitespace"/>
+        <module name="MethodParamPad"/>
+        <module name="NoWhitespaceAfter"/>
+        <module name="NoWhitespaceBefore"/>
+        <module name="OperatorWrap"/>
+        <module name="ParenPad"/>
+        <module name="TypecastParenPad"/>
+        <module name="WhitespaceAfter"/>
+        <module name="WhitespaceAround"/>
+
+        <!-- Modifier Checks                                    -->
+        <!-- See https://checkstyle.org/config_modifier.html -->
+        <module name="ModifierOrder"/>
+        <module name="RedundantModifier"/>
+
+        <!-- Checks for blocks. You know, those {}'s         -->
+        <!-- See https://checkstyle.org/config_blocks.html -->
+        <module name="AvoidNestedBlocks"/>
+        <module name="EmptyBlock"/>
+        <module name="LeftCurly"/>
+        <module name="NeedBraces"/>
+        <module name="RightCurly"/>
+
+        <!-- Checks for common coding problems               -->
+        <!-- See https://checkstyle.org/config_coding.html -->
+        <module name="EmptyStatement"/>
+        <module name="EqualsHashCode"/>
+        <module name="HiddenField"/>
+        <module name="IllegalInstantiation"/>
+        <module name="InnerAssignment"/>
+        <module name="MagicNumber"/>
+        <module name="MissingSwitchDefault"/>
+        <module name="MultipleVariableDeclarations"/>
+        <module name="SimplifyBooleanExpression"/>
+        <module name="SimplifyBooleanReturn"/>
+
+        <!-- Checks for class design                         -->
+        <!-- See https://checkstyle.org/config_design.html -->
+        <module name="DesignForExtension"/>
+        <module name="FinalClass"/>
+        <module name="HideUtilityClassConstructor"/>
+        <module name="InterfaceIsType"/>
         <module name="VisibilityModifier"/>
 
+        <!-- Miscellaneous other checks.                   -->
+        <!-- See https://checkstyle.org/config_misc.html -->
+        <module name="ArrayTypeStyle"/>
+        <module name="FinalParameters"/>
+        <module name="TodoComment"/>
+        <module name="UpperEll"/>
+
+        <!-- https://checkstyle.org/config_filters.html#SuppressionXpathFilter -->
+        <module name="SuppressionXpathFilter">
+            <property name="file" value="${org.checkstyle.sun.suppressionxpathfilter.config}"
+                      default="checkstyle-xpath-suppressions.xml" />
+            <property name="optional" value="true"/>
+        </module>
+
+        <!-- System.out.println -->
+        <module name="RegexpSinglelineJava">
+            <property name="format" value="System.out.println"/>
+            <property name="ignoreCase" value="true"/>
+            <property name="message" value="Do not use System.out.println" />
+            <property name="severity" value="error"/>
+        </module>
+
     </module>
+
+    <module name="RegexpSingleline">
+        <property name="format" value="whitelist"/>
+        <property name="ignoreCase" value="true"/>
+        <property name="message" value="Usage should be switched to an allow* based pattern" />
+        <property name="severity" value="ignore"/>
+    </module>
+
+    <module name="RegexpSingleline">
+        <property name="format" value="master"/>
+        <property name="ignoreCase" value="true"/>
+        <property name="message" value="Usage should be switched to cluster manager" />
+        <property name="severity" value="error"/>
+    </module>
+
+    <module name="RegexpSingleline">
+        <property name="format" value="extension"/>
+        <property name="ignoreCase" value="true"/>
+        <property name="message" value="Extension should only be used sparingly to keep implementations as generic as possible" />
+        <property name="severity" value="error"/>
+    </module>
+
+    <module name="SuppressWithPlainTextCommentFilter">
+        <property name="offCommentFormat" value="CS-SUPPRESS-ALL: .+"/> <!-- Require an explaination after surpressing -->
+        <property name="onCommentFormat" value="CS-ENFORCE-ALL"/>
+    </module>
+
+    <module name="SuppressWithPlainTextCommentFilter">
+        <property name="offCommentFormat" value="CS-SUPPRESS-SINGLE\: ([\w\|]+) .+"/> <!-- Require an explaination after surpressing -->
+        <property name="onCommentFormat" value="CS-ENFORCE-SINGLE()"/>
+        <property name="checkFormat" value="$1"/>
+    </module>
+
 </module>

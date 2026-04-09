@@ -146,7 +146,9 @@ public class PrometheusMetricsCollector {
             // TODO(lukas-vlcek): List of node roles can not be static but needs to be created dynamically.
             Map<String, Integer> roles = new HashMap<>();
 
+            // CS-SUPPRESS-SINGLE: RegexpSingleline "master" is a valid legacy OpenSearch node role name
             roles.put("master", 0);
+            // CS-ENFORCE-SINGLE
             roles.put("data", 0);
             roles.put("ingest", 0);
 
