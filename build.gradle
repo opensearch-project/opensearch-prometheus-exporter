@@ -79,7 +79,7 @@ configurations {
 }
 
 configurations.all {
-    resolutionStrategy.force 'com.google.errorprone:error_prone_annotations:2.48.0'
+    resolutionStrategy.force 'com.google.errorprone:error_prone_annotations:2.49.0'
 }
 
 dependencies {
