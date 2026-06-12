@@ -42,10 +42,6 @@ public class PrometheusSettings {
         STRICT_EXPAND_OPEN_HIDDEN,
         /** See {@link IndicesOptions#strictExpandOpenAndForbidClosed()}  */
         STRICT_EXPAND_OPEN_FORBID_CLOSED,
-        /**
-         * Note: There is a missing static method in the upstream (should be fixed in OpenSearch 3.6.0).
-         * Tracks <a href="https://github.com/opensearch-project/OpenSearch/issues/20963">OpenSearch issue #20963</a>.
-         */
         STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED,
         /** See {@link IndicesOptions#strictExpandOpenAndForbidClosedIgnoreThrottled()}  */
         STRICT_EXPAND_OPEN_FORBID_CLOSED_IGNORE_THROTTLED,
@@ -204,8 +200,7 @@ public class PrometheusSettings {
                 indicesOptions = IndicesOptions.strictExpandOpenAndForbidClosed();
                 break;
             case STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED:
-                //indicesOptions = IndicesOptions.strictExpandOpenHiddenAndForbidClosed(); // from OpenSearch 3.6.0
-                indicesOptions = IndicesOptions.STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED;
+                indicesOptions = IndicesOptions.strictExpandOpenHiddenAndForbidClosed();
                 break;
             case STRICT_EXPAND_OPEN_FORBID_CLOSED_IGNORE_THROTTLED:
                 indicesOptions = IndicesOptions.strictExpandOpenAndForbidClosedIgnoreThrottled();
