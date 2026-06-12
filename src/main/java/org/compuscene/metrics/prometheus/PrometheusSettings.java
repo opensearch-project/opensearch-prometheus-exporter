@@ -42,6 +42,7 @@ public class PrometheusSettings {
         STRICT_EXPAND_OPEN_HIDDEN,
         /** See {@link IndicesOptions#strictExpandOpenAndForbidClosed()}  */
         STRICT_EXPAND_OPEN_FORBID_CLOSED,
+        /** See {@link IndicesOptions#strictExpandOpenHiddenAndForbidClosed()} */
         STRICT_EXPAND_OPEN_HIDDEN_FORBID_CLOSED,
         /** See {@link IndicesOptions#strictExpandOpenAndForbidClosedIgnoreThrottled()}  */
         STRICT_EXPAND_OPEN_FORBID_CLOSED_IGNORE_THROTTLED,
