@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URI;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -57,6 +59,7 @@ public class ISMMetricsCollector {
     private static final int CONNECT_TIMEOUT_MS = 5000;
     private static final int READ_TIMEOUT_MS = 10000;
     private static final int HTTP_OK = 200;
+    private static final int HTTP_BAD_REQUEST = 400;
     private static final int HTTP_NOT_FOUND = 404;
     private static final double MILLIS_TO_SECONDS = 1000.0;
 
@@ -107,6 +110,9 @@ public class ISMMetricsCollector {
             catalog.registerClusterGauge("ism_index_retry_count",
                     "Number of consumed retries for the last ISM action on the index",
                     "index", "policy", "action");
+            catalog.registerClusterGauge("ism_index_step_failed_bool",
+                    "Whether the current ISM step is in a failed state (1=failed)",
+                    "index", "policy", "step");
         }
     }
 
@@ -138,33 +144,39 @@ public class ISMMetricsCollector {
      * @param endpoint the ISM API endpoint path (e.g. {@code /_plugins/_ism/policies})
      * @return parsed JSON as a map, or {@code null} on error
      */
+    @SuppressWarnings("removal")
     Map<String, Object> fetchJson(String endpoint) {
-        try {
-            HttpURLConnection conn = (HttpURLConnection) URI.create(baseUrl + endpoint)
-                    .toURL().openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
-            conn.setReadTimeout(READ_TIMEOUT_MS);
-            conn.setRequestProperty("Content-Type", "application/json");
+        return AccessController.doPrivileged((PrivilegedAction<Map<String, Object>>) () -> {
+            try {
+                HttpURLConnection conn = (HttpURLConnection) URI.create(baseUrl + endpoint)
+                        .toURL().openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(CONNECT_TIMEOUT_MS);
+                conn.setReadTimeout(READ_TIMEOUT_MS);
+                conn.setRequestProperty("Content-Type", "application/json");
 
-            int status = conn.getResponseCode();
-            if (status == HTTP_OK) {
-                try (InputStream is = conn.getInputStream();
-                     XContentParser parser = JsonXContent.jsonXContent.createParser(
-                             NamedXContentRegistry.EMPTY,
-                             LoggingDeprecationHandler.INSTANCE,
-                             is)) {
-                    return parser.map();
+                int status = conn.getResponseCode();
+                if (status == HTTP_OK) {
+                    try (InputStream is = conn.getInputStream();
+                         XContentParser parser = JsonXContent.jsonXContent.createParser(
+                                 NamedXContentRegistry.EMPTY,
+                                 LoggingDeprecationHandler.INSTANCE,
+                                 is)) {
+                        return parser.map();
+                    }
+                } else if (status == HTTP_NOT_FOUND || status == HTTP_BAD_REQUEST) {
+                    logger.debug("ISM endpoint not available at {}: received {}", endpoint, status);
+                } else {
+                    logger.warn("ISM API {} returned unexpected status {}", endpoint, status);
                 }
-            } else if (status == HTTP_NOT_FOUND) {
-                logger.debug("ISM plugin not available at {}: received 404", endpoint);
-            } else {
-                logger.warn("ISM API {} returned unexpected status {}", endpoint, status);
+            } catch (IOException e) {
+                logger.warn("Failed to fetch ISM data from {}: {}", endpoint, e.getMessage());
+            } catch (Exception e) {
+                logger.warn("Unexpected error fetching ISM data from {}: {} ({})",
+                        endpoint, e.getMessage(), e.getClass().getSimpleName());
             }
-        } catch (IOException e) {
-            logger.debug("Failed to fetch ISM data from {}: {}", endpoint, e.getMessage());
-        }
-        return null;
+            return null;
+        });
     }
 
     @SuppressWarnings("unchecked")
@@ -197,6 +209,9 @@ public class ISMMetricsCollector {
 
         Map<String, Integer> countByPolicy = new HashMap<>();
         Map<String, Map<String, Integer>> countByPolicyState = new HashMap<>();
+        // Derived failed counts from step.step_status — replaces the removed /failed_indices endpoint
+        int failedTotal = 0;
+        Map<String, Integer> failedByPolicy = new HashMap<>();
 
         for (Map.Entry<String, Object> entry : response.entrySet()) {
             String indexName = entry.getKey();
@@ -208,26 +223,48 @@ public class ISMMetricsCollector {
             }
             Map<String, Object> indexInfo = (Map<String, Object>) entry.getValue();
 
-            if (!Boolean.TRUE.equals(indexInfo.get("managed"))) {
+            // OpenSearch 3.x removed the top-level "managed" field; use "policy_id" presence instead
+            String policyId = extractString(indexInfo, "policy_id");
+            if (policyId == null) {
+                policyId = extractString(indexInfo,
+                        "index.plugins.index_state_management.policy_id");
+            }
+            if (policyId == null) {
                 continue;
             }
 
-            String policyId = extractString(indexInfo,
-                    "index.plugins.index_state_management.policy_id");
-            String stateName = extractString(indexInfo,
-                    "index.plugins.index_state_management.state.name");
-
-            if (policyId != null) {
-                countByPolicy.merge(policyId, 1, Integer::sum);
+            // "state" is a nested object {"name": "rollover", "start_time": ...} in OpenSearch 3.x
+            String stateName = null;
+            Object stateObj = indexInfo.get("state");
+            if (stateObj instanceof Map) {
+                stateName = extractString((Map<String, Object>) stateObj, "name");
             }
-            if (policyId != null && stateName != null) {
+            if (stateName == null) {
+                stateName = extractString(indexInfo,
+                        "index.plugins.index_state_management.state.name");
+            }
+
+            // Derive failed status from step.step_status (works in 3.x without /failed_indices)
+            boolean stepFailed = false;
+            Object stepObj = indexInfo.get("step");
+            if (stepObj instanceof Map) {
+                String stepStatus = extractString((Map<String, Object>) stepObj, "step_status");
+                stepFailed = "failed".equals(stepStatus);
+            }
+            if (stepFailed) {
+                failedTotal++;
+                failedByPolicy.merge(policyId, 1, Integer::sum);
+            }
+
+            countByPolicy.merge(policyId, 1, Integer::sum);
+            if (stateName != null) {
                 countByPolicyState
                         .computeIfAbsent(policyId, k -> new HashMap<>())
                         .merge(stateName, 1, Integer::sum);
             }
 
-            if (perIndex && policyId != null) {
-                updatePerIndexMetrics(indexName, policyId, indexInfo);
+            if (perIndex) {
+                updatePerIndexMetrics(indexName, policyId, indexInfo, stepFailed);
             }
         }
 
@@ -240,29 +277,65 @@ public class ISMMetricsCollector {
                         stateEntry.getValue(), policyEntry.getKey(), stateEntry.getKey());
             }
         }
+        // Update failed gauges from explain data (fallback when /failed_indices returns 404/400)
+        catalog.setClusterGauge("ism_failed_indices_total", failedTotal);
+        for (Map.Entry<String, Integer> e : failedByPolicy.entrySet()) {
+            catalog.setClusterGauge("ism_failed_indices_by_policy_total", e.getValue(), e.getKey());
+        }
     }
 
     @SuppressWarnings("unchecked")
     private void updatePerIndexMetrics(String indexName, String policyId,
-                                       Map<String, Object> indexInfo) {
+                                       Map<String, Object> indexInfo, boolean stepFailed) {
         catalog.setClusterGauge("ism_index_managed_bool", 1, indexName, policyId);
 
-        Object stepStartTime = indexInfo.get("index.plugins.index_state_management.step.start_time");
+        // step.start_time: nested (3.x) with flat-key fallback (2.x)
+        Object stepStartTime = null;
+        Object stepObj = indexInfo.get("step");
+        if (stepObj instanceof Map) {
+            stepStartTime = ((Map<String, Object>) stepObj).get("start_time");
+        }
+        if (!(stepStartTime instanceof Number)) {
+            stepStartTime = indexInfo.get("index.plugins.index_state_management.step.start_time");
+        }
         if (stepStartTime instanceof Number) {
             catalog.setClusterGauge("ism_index_last_update_seconds",
                     ((Number) stepStartTime).doubleValue() / MILLIS_TO_SECONDS,
                     indexName, policyId);
         }
 
-        String actionName = extractString(indexInfo,
-                "index.plugins.index_state_management.action.name");
-        Object retryInfoObj = indexInfo.get("index.plugins.index_state_management.action.retry_info");
-        if (retryInfoObj instanceof Map && actionName != null) {
-            Map<String, Object> retryInfo = (Map<String, Object>) retryInfoObj;
-            Object consumed = retryInfo.get("consumed_retries");
-            if (consumed instanceof Number) {
-                catalog.setClusterGauge("ism_index_retry_count",
-                        ((Number) consumed).doubleValue(), indexName, policyId, actionName);
+        // action: nested object in 3.x — consumed_retries is a direct field, not inside retry_info
+        String actionName = null;
+        Object consumedRetries = null;
+        Object actionObj = indexInfo.get("action");
+        if (actionObj instanceof Map) {
+            Map<String, Object> action = (Map<String, Object>) actionObj;
+            actionName = extractString(action, "name");
+            consumedRetries = action.get("consumed_retries");
+        }
+        // 2.x flat-key fallback for action name and consumed_retries
+        if (actionName == null) {
+            actionName = extractString(indexInfo,
+                    "index.plugins.index_state_management.action.name");
+        }
+        if (!(consumedRetries instanceof Number)) {
+            Object retryInfoObj = indexInfo.get(
+                    "index.plugins.index_state_management.action.retry_info");
+            if (retryInfoObj instanceof Map) {
+                consumedRetries = ((Map<String, Object>) retryInfoObj).get("consumed_retries");
+            }
+        }
+        if (actionName != null && consumedRetries instanceof Number) {
+            catalog.setClusterGauge("ism_index_retry_count",
+                    ((Number) consumedRetries).doubleValue(), indexName, policyId, actionName);
+        }
+
+        // step failed flag
+        if (stepObj instanceof Map) {
+            String stepName = extractString((Map<String, Object>) stepObj, "name");
+            if (stepName != null) {
+                catalog.setClusterGauge("ism_index_step_failed_bool",
+                        stepFailed ? 1 : 0, indexName, policyId, stepName);
             }
         }
     }

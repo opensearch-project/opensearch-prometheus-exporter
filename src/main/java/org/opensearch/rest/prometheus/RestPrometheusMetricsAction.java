@@ -149,11 +149,15 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                                     response.getIndicesStats(), response.getClusterStatsData());
 
                             if (prometheusSettings.getPrometheusISM()) {
-                                String localBaseUrl = buildLocalBaseUrl(request);
-                                ISMMetricsCollector ismCollector = new ISMMetricsCollector(
-                                        catalog, localBaseUrl, prometheusSettings.getPrometheusISMPerIndex());
-                                ismCollector.registerMetrics();
-                                ismCollector.updateMetrics();
+                                try {
+                                    String localBaseUrl = buildLocalBaseUrl(request);
+                                    ISMMetricsCollector ismCollector = new ISMMetricsCollector(
+                                            catalog, localBaseUrl, prometheusSettings.getPrometheusISMPerIndex());
+                                    ismCollector.registerMetrics();
+                                    ismCollector.updateMetrics();
+                                } catch (Exception ismEx) {
+                                    logger.warn("ISM metrics collection failed, skipping: {}", ismEx.getMessage());
+                                }
                             }
 
                             textContent = collector.getTextContent();
