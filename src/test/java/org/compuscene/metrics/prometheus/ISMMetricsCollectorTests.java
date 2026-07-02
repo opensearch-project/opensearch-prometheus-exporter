@@ -105,7 +105,7 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
         assertTrue("retention_7d label present", text.contains("retention_7d"));
         assertTrue("retention_30d label present", text.contains("retention_30d"));
         assertTrue("policy enabled value is 1",
-                text.contains("ism_policy_enabled_bool{cluster=\"test-cluster\",policy=\"retention_7d\"} 1.0"));
+                text.contains("ism_policy_enabled_bool{cluster=\"test-cluster\",policy=\"retention_7d\",} 1"));
     }
 
     /**
@@ -123,7 +123,7 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
         collector.updatePolicyMetrics(response);
 
         String text = catalog.toTextFormat();
-        assertTrue("policy count is 0", text.contains("ism_policy_count{cluster=\"test-cluster\"} 0.0"));
+        assertTrue("policy count is 0", text.contains("ism_policy_count{cluster=\"test-cluster\",} 0"));
     }
 
     // ── updateExplainMetrics ─────────────────────────────────────────────────
@@ -149,13 +149,13 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
         assertTrue("total managed indices set", text.contains("ism_managed_indices_total"));
         assertTrue("retention_7d policy count present",
                 text.contains("ism_managed_indices_by_policy_total{cluster=\"test-cluster\","
-                        + "policy=\"retention_7d\"} 2.0"));
+                        + "policy=\"retention_7d\",} 2"));
         assertTrue("retention_30d policy count present",
                 text.contains("ism_managed_indices_by_policy_total{cluster=\"test-cluster\","
-                        + "policy=\"retention_30d\"} 1.0"));
+                        + "policy=\"retention_30d\",} 1"));
         assertTrue("rollover state count for retention_7d present",
                 text.contains("ism_managed_indices_by_state_total{cluster=\"test-cluster\","
-                        + "policy=\"retention_7d\",state=\"rollover\"} 1.0"));
+                        + "policy=\"retention_7d\",state=\"rollover\",} 1"));
     }
 
     /**
@@ -182,12 +182,12 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
         String text = catalog.toTextFormat();
         assertTrue("per-index managed_bool present",
                 text.contains("ism_index_managed_bool{cluster=\"test-cluster\","
-                        + "index=\"logs-000001\",policy=\"retention_7d\"} 1.0"));
+                        + "index=\"logs-000001\",policy=\"retention_7d\",} 1"));
         assertTrue("per-index last_update_seconds present",
                 text.contains("ism_index_last_update_seconds"));
         assertTrue("per-index retry_count present",
                 text.contains("ism_index_retry_count{cluster=\"test-cluster\","
-                        + "index=\"logs-000001\",policy=\"retention_7d\",action=\"rollover\"} 2.0"));
+                        + "index=\"logs-000001\",policy=\"retention_7d\",action=\"rollover\",} 2"));
     }
 
     /**
@@ -207,7 +207,7 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
         String text = catalog.toTextFormat();
         assertFalse("unmanaged index should not appear in by_policy metric",
                 text.contains("ism_managed_indices_by_policy_total{cluster=\"test-cluster\","
-                        + "policy=\"retention_7d\"} 1.0"));
+                        + "policy=\"retention_7d\",} 1"));
     }
 
     // ── updateFailedMetrics ──────────────────────────────────────────────────
@@ -231,10 +231,10 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
 
         String text = catalog.toTextFormat();
         assertTrue("total failed = 2",
-                text.contains("ism_failed_indices_total{cluster=\"test-cluster\"} 2.0"));
+                text.contains("ism_failed_indices_total{cluster=\"test-cluster\",} 2"));
         assertTrue("per-policy failed = 2",
                 text.contains("ism_failed_indices_by_policy_total{cluster=\"test-cluster\","
-                        + "policy=\"retention_7d\"} 2.0"));
+                        + "policy=\"retention_7d\",} 2"));
     }
 
     /**
@@ -253,7 +253,7 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
 
         String text = catalog.toTextFormat();
         assertTrue("total failed = 0",
-                text.contains("ism_failed_indices_total{cluster=\"test-cluster\"} 0.0"));
+                text.contains("ism_failed_indices_total{cluster=\"test-cluster\",} 0"));
     }
 
     // ── updateMetrics full flow ──────────────────────────────────────────────
@@ -292,11 +292,11 @@ public class ISMMetricsCollectorTests extends OpenSearchTestCase {
 
         String text = catalog.toTextFormat();
         assertTrue("policy count = 1",
-                text.contains("ism_policy_count{cluster=\"test-cluster\"} 1.0"));
+                text.contains("ism_policy_count{cluster=\"test-cluster\",} 1"));
         assertTrue("managed total = 1",
-                text.contains("ism_managed_indices_total{cluster=\"test-cluster\"} 1.0"));
+                text.contains("ism_managed_indices_total{cluster=\"test-cluster\",} 1"));
         assertTrue("failed total = 0",
-                text.contains("ism_failed_indices_total{cluster=\"test-cluster\"} 0.0"));
+                text.contains("ism_failed_indices_total{cluster=\"test-cluster\",} 0"));
     }
 
     // ── fetchJson (null handling) ────────────────────────────────────────────
