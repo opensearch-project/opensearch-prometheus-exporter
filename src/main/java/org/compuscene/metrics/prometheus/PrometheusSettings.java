@@ -67,6 +67,8 @@ public class PrometheusSettings {
     static String PROMETHEUS_NODES_FILTER_KEY = "prometheus.nodes.filter";
     static String PROMETHEUS_SELECTED_INDICES_KEY = "prometheus.indices_filter.selected_indices";
     static String PROMETHEUS_SELECTED_OPTION_KEY = "prometheus.indices_filter.selected_option";
+    static String PROMETHEUS_ISM_KEY = "prometheus.metric_name.ism";
+    static String PROMETHEUS_ISM_PER_INDEX_KEY = "prometheus.metric_name.ism_per_index";
 
     /**
      * This setting is used configure weather to expose cluster settings metrics or not. The default value is true.
@@ -112,11 +114,30 @@ public class PrometheusSettings {
                     String.valueOf(INDEX_FILTER_OPTIONS.STRICT_EXPAND_OPEN_FORBID_CLOSED),
                     INDEX_FILTER_OPTIONS::valueOf, Setting.Property.Dynamic, Setting.Property.NodeScope);
 
+    /**
+     * This setting controls whether to expose ISM policy metrics. The default value is true.
+     * Can be configured in opensearch.yml or updated dynamically under key {@link #PROMETHEUS_ISM_KEY}.
+     */
+    public static final Setting<Boolean> PROMETHEUS_ISM =
+            Setting.boolSetting(PROMETHEUS_ISM_KEY, true,
+                    Setting.Property.Dynamic, Setting.Property.NodeScope);
+
+    /**
+     * This setting controls whether to expose per-index ISM metrics (retry count, last update time).
+     * The default value is false as per-index metrics can be expensive for large clusters.
+     * Can be configured in opensearch.yml or updated dynamically under key {@link #PROMETHEUS_ISM_PER_INDEX_KEY}.
+     */
+    public static final Setting<Boolean> PROMETHEUS_ISM_PER_INDEX =
+            Setting.boolSetting(PROMETHEUS_ISM_PER_INDEX_KEY, false,
+                    Setting.Property.Dynamic, Setting.Property.NodeScope);
+
     private volatile boolean clusterSettings;
     private volatile boolean indices;
     private volatile String nodesFilter;
     private volatile String selectedIndices;
     private volatile INDEX_FILTER_OPTIONS selectedOption;
+    private volatile boolean ism;
+    private volatile boolean ismPerIndex;
 
     /**
      * A constructor.
@@ -129,11 +150,15 @@ public class PrometheusSettings {
         setPrometheusNodesFilter(PROMETHEUS_NODES_FILTER.get(settings));
         setPrometheusSelectedIndices(PROMETHEUS_SELECTED_INDICES.get(settings));
         setPrometheusSelectedOption(PROMETHEUS_SELECTED_OPTION.get(settings));
+        setPrometheusISM(PROMETHEUS_ISM.get(settings));
+        setPrometheusISMPerIndex(PROMETHEUS_ISM_PER_INDEX.get(settings));
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_CLUSTER_SETTINGS, this::setPrometheusClusterSettings);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_INDICES, this::setPrometheusIndices);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_NODES_FILTER, this::setPrometheusNodesFilter);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_INDICES, this::setPrometheusSelectedIndices);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_OPTION, this::setPrometheusSelectedOption);
+        clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_ISM, this::setPrometheusISM);
+        clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_ISM_PER_INDEX, this::setPrometheusISMPerIndex);
     }
 
     private void setPrometheusClusterSettings(boolean flag) {
@@ -152,6 +177,14 @@ public class PrometheusSettings {
 
     private void setPrometheusSelectedOption(INDEX_FILTER_OPTIONS selectedOption) {
         this.selectedOption = selectedOption;
+    }
+
+    private void setPrometheusISM(boolean flag) {
+        this.ism = flag;
+    }
+
+    private void setPrometheusISMPerIndex(boolean flag) {
+        this.ismPerIndex = flag;
     }
 
     /**
@@ -182,6 +215,22 @@ public class PrometheusSettings {
      */
     public String[] getPrometheusSelectedIndices() {
         return Strings.splitStringByCommaToArray(this.selectedIndices);
+    }
+
+    /**
+     * Get value of settings key {@link #PROMETHEUS_ISM_KEY}.
+     * @return boolean value of the key
+     */
+    public boolean getPrometheusISM() {
+        return this.ism;
+    }
+
+    /**
+     * Get value of settings key {@link #PROMETHEUS_ISM_PER_INDEX_KEY}.
+     * @return boolean value of the key
+     */
+    public boolean getPrometheusISMPerIndex() {
+        return this.ismPerIndex;
     }
 
     /**
