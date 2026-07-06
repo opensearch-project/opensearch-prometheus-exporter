@@ -20,6 +20,7 @@ import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CL
 import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_DISK_THRESHOLD_ENABLED_SETTING;
 import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_HIGH_DISK_WATERMARK_SETTING;
 import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_LOW_DISK_WATERMARK_SETTING;
+import static org.opensearch.cluster.routing.allocation.decider.EnableAllocationDecider.CLUSTER_ROUTING_ALLOCATION_ENABLE_SETTING;
 
 import org.opensearch.OpenSearchParseException;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
@@ -34,6 +35,7 @@ import org.opensearch.common.settings.SettingsException;
 import org.opensearch.common.unit.RatioValue;
 
 import java.io.IOException;
+import java.util.Locale;
 
 
 /**
@@ -64,6 +66,9 @@ public class ClusterStatsData extends ActionResponse {
     @Nullable private final Double diskHighInPct;
     @Nullable private final Double floodStageInPct;
 
+    // Encodes cluster.routing.allocation.enable as: 0=all, 1=primaries, 2=new_primaries, 3=none
+    @Nullable private final Integer shardAllocation;
+
     /**
      * A constructor.
      * @param in A {@link StreamInput} to materialize the instance from
@@ -80,6 +85,8 @@ public class ClusterStatsData extends ActionResponse {
         diskLowInPct = in.readOptionalDouble();
         diskHighInPct = in.readOptionalDouble();
         floodStageInPct = in.readOptionalDouble();
+        //
+        shardAllocation = in.readOptionalInt();
     }
 
     @SuppressWarnings({"checkstyle:LineLength"})
@@ -94,6 +101,7 @@ public class ClusterStatsData extends ActionResponse {
         Double resolvedDiskLowInPct = null;
         Double resolvedDiskHighInPct = null;
         Double resolvedFloodStageInPct = null;
+        Integer resolvedShardAllocation = null;
 
         // There are several layers of cluster settings in OpenSearch each having different priority.
         // We need to traverse them from the top priority down to find relevant value of each setting.
@@ -106,6 +114,13 @@ public class ClusterStatsData extends ActionResponse {
             if (resolvedThresholdEnabled == null) {
                 resolvedThresholdEnabled = currentSettings.getAsBoolean(
                         CLUSTER_ROUTING_ALLOCATION_DISK_THRESHOLD_ENABLED_SETTING.getKey(), null);
+            }
+
+            if (resolvedShardAllocation == null) {
+                String allocationValue = currentSettings.get(CLUSTER_ROUTING_ALLOCATION_ENABLE_SETTING.getKey());
+                if (allocationValue != null) {
+                    resolvedShardAllocation = mapShardAllocation(allocationValue);
+                }
             }
 
             LongValue parsedLow = parseWatermarkValue(
@@ -134,6 +149,25 @@ public class ClusterStatsData extends ActionResponse {
         diskLowInPct = resolvedDiskLowInPct;
         diskHighInPct = resolvedDiskHighInPct;
         floodStageInPct = resolvedFloodStageInPct;
+        shardAllocation = resolvedShardAllocation;
+    }
+
+    /**
+     * Map the string value of {@code cluster.routing.allocation.enable} to the numeric encoding
+     * used by the Elasticsearch exporter: all=0, primaries=1, new_primaries=2, none=3.
+     * Returns {@code null} for any unrecognized value.
+     * @param value The raw setting value.
+     * @return The numeric encoding, or {@code null} if not recognized.
+     */
+    @Nullable
+    private static Integer mapShardAllocation(String value) {
+        switch (value.toLowerCase(Locale.ROOT)) {
+            case "all":           return 0;
+            case "primaries":     return 1;
+            case "new_primaries": return 2;
+            case "none":          return 3;
+            default:              return null;
+        }
     }
 
     private record LongValue(@Nullable Long bytes, @Nullable Double pct) {
@@ -177,6 +211,8 @@ public class ClusterStatsData extends ActionResponse {
         out.writeOptionalDouble(diskLowInPct);
         out.writeOptionalDouble(diskHighInPct);
         out.writeOptionalDouble(floodStageInPct);
+        //
+        out.writeOptionalInt(shardAllocation);
     }
 
     /**
@@ -240,5 +276,15 @@ public class ClusterStatsData extends ActionResponse {
     @Nullable
     public Double getFloodStageInPct() {
         return floodStageInPct;
+    }
+
+    /**
+     * Get the numeric encoding of {@code cluster.routing.allocation.enable}
+     * (0=all, 1=primaries, 2=new_primaries, 3=none), or {@code null} if unset/unrecognized.
+     * @return An Integer value of the setting.
+     */
+    @Nullable
+    public Integer getShardAllocation() {
+        return shardAllocation;
     }
 }
