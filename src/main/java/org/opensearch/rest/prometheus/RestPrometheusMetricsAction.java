@@ -22,6 +22,7 @@ import static org.opensearch.rest.RestRequest.Method.GET;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.compuscene.metrics.prometheus.ISMMetricsCollector;
 import org.compuscene.metrics.prometheus.PrometheusMetricsCatalog;
 import org.compuscene.metrics.prometheus.PrometheusMetricsCollector;
 import org.compuscene.metrics.prometheus.PrometheusSettings;
@@ -82,6 +83,18 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
         }
     }
 
+    /**
+     * Builds the local base URL for calling the ISM REST API on this node.
+     *
+     * @param request the incoming REST request, used to determine the local HTTP address
+     * @return base URL string (e.g. {@code http://localhost:9200})
+     */
+    static String buildLocalBaseUrl(RestRequest request) {
+        java.net.InetSocketAddress localAddr =
+                (java.net.InetSocketAddress) request.getHttpChannel().getLocalAddress();
+        return "http://localhost:" + localAddr.getPort();
+    }
+
     @Override
     public List<Route> routes() {
         return unmodifiableList(asList(
@@ -134,6 +147,19 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
                                     response.getIndicesStats(), response.getClusterStatsData());
+
+                            if (prometheusSettings.getPrometheusISM()) {
+                                try {
+                                    String localBaseUrl = buildLocalBaseUrl(request);
+                                    ISMMetricsCollector ismCollector = new ISMMetricsCollector(
+                                            catalog, localBaseUrl, prometheusSettings.getPrometheusISMPerIndex());
+                                    ismCollector.registerMetrics();
+                                    ismCollector.updateMetrics();
+                                } catch (Exception ismEx) {
+                                    logger.warn("ISM metrics collection failed, skipping: {}", ismEx.getMessage());
+                                }
+                            }
+
                             textContent = collector.getTextContent();
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing

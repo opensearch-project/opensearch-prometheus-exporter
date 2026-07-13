@@ -70,4 +70,23 @@ public class PrometheusPluginIT extends OpenSearchIntegTestCase {
         String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
         assertTrue(body.startsWith("# HELP"));
     }
+
+    /**
+     * ISM metric names must be present in the Prometheus output even when the ISM plugin
+     * is not installed (ISM endpoints return 404 and metrics fall back to zero / are skipped).
+     * This verifies the ISM collector is wired up and registers its metrics unconditionally.
+     */
+    public void testPrometheusResponseContainsISMMetricHeaders() throws IOException, ParseException {
+        RestClient rc = getRestClient();
+        Response response = rc.performRequest(new Request("GET", "_prometheus/metrics"));
+        assertEquals(200, response.getStatusLine().getStatusCode());
+        String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+
+        assertTrue("ISM policy count metric header present",
+                body.contains("opensearch_ism_policy_count"));
+        assertTrue("ISM failed indices total metric header present",
+                body.contains("opensearch_ism_failed_indices_total"));
+        assertTrue("ISM managed indices total metric header present",
+                body.contains("opensearch_ism_managed_indices_total"));
+    }
 }
