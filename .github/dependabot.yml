@@ -6,30 +6,25 @@ updates:
       interval: "weekly"
   - package-ecosystem: "github-actions"
     directory: "/"
-    target-branch: v1.3
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "github-actions"
-    directory: "/"
     target-branch: v2.19
     schedule:
       interval: "weekly"
   - package-ecosystem: "github-actions"
     directory: "/"
-    target-branch: mixin
+    target-branch: v3.6
     schedule:
       interval: "weekly"
   - package-ecosystem: "gradle"
     directory: "/"
-    schedule:
-      interval: "weekly"
-  - package-ecosystem: "gradle"
-    directory: "/"
-    target-branch: v1.3
     schedule:
       interval: "weekly"
   - package-ecosystem: "gradle"
     directory: "/"
     target-branch: v2.19
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "gradle"
+    directory: "/"
+    target-branch: v3.6
     schedule:
       interval: "weekly"
