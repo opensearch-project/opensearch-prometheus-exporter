@@ -112,6 +112,18 @@ To disable exporting cluster settings use:
 prometheus.cluster.settings: false
 ```
 
+#### Scrape step timeout
+
+Per-step timeout applied to each individual request the exporter makes while gathering a scrape
+(nodes stats, indices stats). Without a bound, a single non-responding node (for example one stuck
+in D-state under a disk failure) can stall the whole scrape indefinitely, since these requests fan
+out to every node in the cluster. When a step times out, the exporter returns partial metrics for
+that step instead of failing the whole scrape. Default value: `5s`.
+
+```
+prometheus.scrape.step_timeout: "5s"
+```
+
 #### Nodes filter
 
 Metrics include statistics about individual OpenSearch nodes.
