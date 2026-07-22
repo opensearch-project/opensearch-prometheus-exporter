@@ -902,6 +902,9 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("cluster_routing_allocation_disk_watermark_low_pct", "Low watermark for disk usage in pct");
         catalog.registerClusterGauge("cluster_routing_allocation_disk_watermark_high_pct", "High watermark for disk usage in pct");
         catalog.registerClusterGauge("cluster_routing_allocation_disk_watermark_flood_stage_pct", "Flood stage watermark for disk usage in pct");
+        //
+        catalog.registerClusterGauge("cluster_routing_allocation_enabled",
+                "Cluster shard routing allocation mode (0=all, 1=primaries, 2=new_primaries, 3=none)");
     }
 
     @SuppressWarnings({"checkstyle:LineLength", "checkstyle:LeftCurly"})
@@ -919,6 +922,9 @@ public class PrometheusMetricsCollector {
             if (stats.getDiskLowInPct() != null) { catalog.setClusterGauge("cluster_routing_allocation_disk_watermark_low_pct", stats.getDiskLowInPct()); }
             if (stats.getDiskHighInPct() != null) { catalog.setClusterGauge("cluster_routing_allocation_disk_watermark_high_pct", stats.getDiskHighInPct()); }
             if (stats.getFloodStageInPct() != null) { catalog.setClusterGauge("cluster_routing_allocation_disk_watermark_flood_stage_pct", stats.getFloodStageInPct()); }
+            // Default to 0 (all) when unset, matching OpenSearch's default and the ES exporter output.
+            Integer shardAllocation = stats.getShardAllocation();
+            catalog.setClusterGauge("cluster_routing_allocation_enabled", shardAllocation != null ? shardAllocation : 0);
         }
     }
 
