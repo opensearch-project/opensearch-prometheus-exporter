@@ -30,6 +30,10 @@
 
 package org.opensearch.plugin.prometheus.collector;
 
+import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.Summary;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.common.collect.Tuple;
@@ -41,9 +45,6 @@ import java.io.Writer;
 import java.util.HashMap;
 import java.util.Locale;
 
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Summary;
 import io.prometheus.client.exporter.common.TextFormat;
 
 /**
@@ -52,11 +53,11 @@ import io.prometheus.client.exporter.common.TextFormat;
 public class PrometheusMetricsCatalog {
     private static final Logger logger = LogManager.getLogger(RestPrometheusMetricsAction.class);
 
-    private String clusterName;
-    private String metricPrefix;
+    private final String clusterName;
+    private final String metricPrefix;
 
-    private HashMap<String, Object> metrics;
-    private CollectorRegistry registry;
+    private final HashMap<String, Collector> metrics;
+    private final CollectorRegistry registry;
 
     /**
      * Creates a new PrometheusMetricsCatalog for the given cluster and metric prefix.
