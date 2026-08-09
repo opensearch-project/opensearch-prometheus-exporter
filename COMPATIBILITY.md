@@ -4,6 +4,7 @@ NOTE: OpenSearch plugins must match _exactly_ in major.minor.patch version to th
 
 | OpenSearch |      Plugin |  Release date |
 |-----------:|------------:|--------------:|
+|      3.8.0 |     3.8.0.0 |  Aug 10, 2026 |
 |      3.7.0 |     3.7.0.0 |  Jun 10, 2026 |
 |      3.6.0 |     3.6.0.0 |  Apr 16, 2026 |
 |      3.5.0 |     3.5.0.0 |  Feb 11, 2026 |
