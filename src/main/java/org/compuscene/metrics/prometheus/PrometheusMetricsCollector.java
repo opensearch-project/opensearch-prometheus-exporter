@@ -902,6 +902,8 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("cluster_routing_allocation_disk_watermark_low_pct", "Low watermark for disk usage in pct");
         catalog.registerClusterGauge("cluster_routing_allocation_disk_watermark_high_pct", "High watermark for disk usage in pct");
         catalog.registerClusterGauge("cluster_routing_allocation_disk_watermark_flood_stage_pct", "Flood stage watermark for disk usage in pct");
+        //
+        catalog.registerClusterGauge("cluster_max_shards_per_node", "Maximum number of primary and replica shards allowed per node");
     }
 
     @SuppressWarnings({"checkstyle:LineLength", "checkstyle:LeftCurly"})
@@ -919,6 +921,8 @@ public class PrometheusMetricsCollector {
             if (stats.getDiskLowInPct() != null) { catalog.setClusterGauge("cluster_routing_allocation_disk_watermark_low_pct", stats.getDiskLowInPct()); }
             if (stats.getDiskHighInPct() != null) { catalog.setClusterGauge("cluster_routing_allocation_disk_watermark_high_pct", stats.getDiskHighInPct()); }
             if (stats.getFloodStageInPct() != null) { catalog.setClusterGauge("cluster_routing_allocation_disk_watermark_flood_stage_pct", stats.getFloodStageInPct()); }
+            //
+            if (stats.getMaxShardsPerNode() != null) { catalog.setClusterGauge("cluster_max_shards_per_node", stats.getMaxShardsPerNode()); }
         }
     }
 

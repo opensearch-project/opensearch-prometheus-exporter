@@ -44,7 +44,7 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - File System
     - Circuit Breaker
 - Indices status
-- Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically)
+- Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) and the [maximum number of shards per node](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-shard-block-and-task-settings) that can be updated dynamically)
 
 ## Compatibility Matrix
 

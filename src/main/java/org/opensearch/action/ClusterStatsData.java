@@ -20,6 +20,7 @@ import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CL
 import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_DISK_THRESHOLD_ENABLED_SETTING;
 import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_HIGH_DISK_WATERMARK_SETTING;
 import static org.opensearch.cluster.routing.allocation.DiskThresholdSettings.CLUSTER_ROUTING_ALLOCATION_LOW_DISK_WATERMARK_SETTING;
+import static org.opensearch.indices.ShardLimitValidator.SETTING_CLUSTER_MAX_SHARDS_PER_NODE;
 
 import org.opensearch.OpenSearchParseException;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
@@ -51,6 +52,12 @@ import java.io.IOException;
  * To make it easy for Prometheus to consume the data, we expose these settings in both formats (pct and bytes)
  * and we do our best in determining if they are currently set as pct or bytes filling appropriate variables
  * with data or null value.
+ * <p>
+ * On top of the disk watermarks we expose the cluster-wide shard limit ("cluster.max_shards_per_node" [3]),
+ * which makes it possible to alert on a cluster approaching the maximum number of shards it can host.
+ * <ul>
+ *   <li> [3] <a href="https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/">Cluster Settings ("cluster.max_shards_per_node")</a></li>
+ * </ul>
  */
 public class ClusterStatsData extends ActionResponse {
 
@@ -63,6 +70,8 @@ public class ClusterStatsData extends ActionResponse {
     @Nullable private final Double diskLowInPct;
     @Nullable private final Double diskHighInPct;
     @Nullable private final Double floodStageInPct;
+
+    @Nullable private final Long maxShardsPerNode;
 
     /**
      * A constructor.
@@ -80,6 +89,8 @@ public class ClusterStatsData extends ActionResponse {
         diskLowInPct = in.readOptionalDouble();
         diskHighInPct = in.readOptionalDouble();
         floodStageInPct = in.readOptionalDouble();
+        //
+        maxShardsPerNode = in.readOptionalLong();
     }
 
     @SuppressWarnings({"checkstyle:LineLength"})
@@ -94,6 +105,7 @@ public class ClusterStatsData extends ActionResponse {
         Double resolvedDiskLowInPct = null;
         Double resolvedDiskHighInPct = null;
         Double resolvedFloodStageInPct = null;
+        Long resolvedMaxShardsPerNode = null;
 
         // There are several layers of cluster settings in OpenSearch each having different priority.
         // We need to traverse them from the top priority down to find relevant value of each setting.
@@ -125,6 +137,11 @@ public class ClusterStatsData extends ActionResponse {
                     CLUSTER_ROUTING_ALLOCATION_DISK_FLOOD_STAGE_WATERMARK_SETTING.getKey());
             resolvedFloodStageInBytes = firstNonNull(resolvedFloodStageInBytes, parsedFlood.bytes());
             resolvedFloodStageInPct = firstNonNull(resolvedFloodStageInPct, parsedFlood.pct());
+
+            if (resolvedMaxShardsPerNode == null) {
+                resolvedMaxShardsPerNode = currentSettings.getAsLong(
+                        SETTING_CLUSTER_MAX_SHARDS_PER_NODE.getKey(), null);
+            }
         }
 
         thresholdEnabled = resolvedThresholdEnabled;
@@ -134,6 +151,7 @@ public class ClusterStatsData extends ActionResponse {
         diskLowInPct = resolvedDiskLowInPct;
         diskHighInPct = resolvedDiskHighInPct;
         floodStageInPct = resolvedFloodStageInPct;
+        maxShardsPerNode = resolvedMaxShardsPerNode;
     }
 
     private record LongValue(@Nullable Long bytes, @Nullable Double pct) {
@@ -177,6 +195,8 @@ public class ClusterStatsData extends ActionResponse {
         out.writeOptionalDouble(diskLowInPct);
         out.writeOptionalDouble(diskHighInPct);
         out.writeOptionalDouble(floodStageInPct);
+        //
+        out.writeOptionalLong(maxShardsPerNode);
     }
 
     /**
@@ -240,5 +260,14 @@ public class ClusterStatsData extends ActionResponse {
     @Nullable
     public Double getFloodStageInPct() {
         return floodStageInPct;
+    }
+
+    /**
+     * Get value of setting controlled by {@link org.opensearch.indices.ShardLimitValidator#SETTING_CLUSTER_MAX_SHARDS_PER_NODE}.
+     * @return A Long value of the setting.
+     */
+    @Nullable
+    public Long getMaxShardsPerNode() {
+        return maxShardsPerNode;
     }
 }
