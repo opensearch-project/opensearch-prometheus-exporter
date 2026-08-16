@@ -1,0 +1,161 @@
+---
+"Cluster settings statistics: max shards per node":
+
+  # -----------------------------------
+  # By default "cluster.max_shards_per_node" setting is set to '1000'.
+  # See: org.opensearch.indices.ShardLimitValidator
+  # OOTB there are no transient or persistent settings in the cluster, which means
+  # the value is resolved from the cluster defaults:
+  # (note: no "flat_settings" here, we want to traverse the nested response
+  #  to reach the default value of the setting)
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+
+  - match: {persistent: {}}
+  - match: {transient: {}}
+  - match: {defaults.cluster.max_shards_per_node: "1000"}
+
+  # Verify in Prometheus metrics:
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_max_shards_per_node (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_max_shards_per_node \s gauge \n
+        opensearch_cluster_max_shards_per_node\{
+            cluster="yamlRestTest"
+        \,} \s 1000\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # Lower the shard limit at the PERSISTENT level:
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            cluster.max_shards_per_node: 500
+        flat_settings: true
+
+  - match: {persistent: {cluster.max_shards_per_node: "500"}}
+
+  - do:
+      cluster.get_settings:
+        flat_settings: true
+
+  - match: {transient: {}}
+  - match: {persistent: {cluster.max_shards_per_node: "500"}}
+
+  # Verify in Prometheus metrics:
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_max_shards_per_node (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_max_shards_per_node \s gauge \n
+        opensearch_cluster_max_shards_per_node\{
+            cluster="yamlRestTest"
+        \,} \s 500\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # The TRANSIENT level takes precedence over the PERSISTENT one:
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.max_shards_per_node: 200
+        flat_settings: true
+
+  - match: {transient: {cluster.max_shards_per_node: "200"}}
+
+  - do:
+      cluster.get_settings:
+        flat_settings: true
+
+  - match: {transient: {cluster.max_shards_per_node: "200"}}
+  - match: {persistent: {cluster.max_shards_per_node: "500"}}
+
+  # Verify in Prometheus metrics:
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_max_shards_per_node (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_max_shards_per_node \s gauge \n
+        opensearch_cluster_max_shards_per_node\{
+            cluster="yamlRestTest"
+        \,} \s 200\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # Wipe out the setting at the PERSISTENT level. There is still an override
+  # at the TRANSIENT (ie. higher) level:
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            cluster.max_shards_per_node: null
+        flat_settings: true
+
+  - match: {persistent: {}}
+
+  - do:
+      cluster.get_settings:
+        flat_settings: true
+
+  - match: {transient: {cluster.max_shards_per_node: "200"}}
+  - match: {persistent: {}}
+
+  # Verify in Prometheus metrics:
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_max_shards_per_node (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_max_shards_per_node \s gauge \n
+        opensearch_cluster_max_shards_per_node\{
+            cluster="yamlRestTest"
+        \,} \s 200\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # Finally, wipe out the setting from the TRANSIENT level as well.
+  # We are back to the cluster default value:
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.max_shards_per_node: null
+        flat_settings: true
+
+  - match: {transient: {}}
+
+  - do:
+      cluster.get_settings:
+        flat_settings: true
+
+  - match: {transient: {}}
+  - match: {persistent: {}}
+
+  # Verify in Prometheus metrics:
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_max_shards_per_node (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_cluster_max_shards_per_node \s gauge \n
+        opensearch_cluster_max_shards_per_node\{
+            cluster="yamlRestTest"
+        \,} \s 1000\.0 \n?
+        .*/
