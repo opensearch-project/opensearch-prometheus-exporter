@@ -241,7 +241,7 @@
 
   - match: {status: 400}
   - match: {error.type: "illegal_argument_exception"}
-  - match: {error.reason: "No enum constant org.compuscene.metrics.prometheus.PrometheusSettings.INDEX_FILTER_OPTIONS.TEST"}
+  - match: {error.reason: "No enum constant org.opensearch.plugin.prometheus.collector.PrometheusSettings.INDEX_FILTER_OPTIONS.TEST"}
 
   # Unexpected input values
   - do:
