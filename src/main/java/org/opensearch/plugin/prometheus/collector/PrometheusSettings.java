@@ -1,4 +1,12 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+
+/*
  * Copyright [2019] [Lukáš VLČEK]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +23,12 @@
  *
  */
 
-package org.compuscene.metrics.prometheus;
+/*
+ * Modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ */
+
+package org.opensearch.plugin.prometheus.collector;
 
 import org.opensearch.action.support.IndicesOptions;
 import org.opensearch.core.common.Strings;

@@ -1,4 +1,12 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+
+/*
  * Copyright [2016] [Vincent VAN HOLLEBEKE]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,18 +23,23 @@
  *
  */
 
-package org.opensearch.rest.prometheus;
+/*
+ * Modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ */
 
-import static org.opensearch.action.NodePrometheusMetricsAction.INSTANCE;
+package org.opensearch.plugin.prometheus.rest;
+
+import static org.opensearch.plugin.prometheus.action.NodePrometheusMetricsAction.INSTANCE;
 import static org.opensearch.rest.RestRequest.Method.GET;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.compuscene.metrics.prometheus.PrometheusMetricsCatalog;
-import org.compuscene.metrics.prometheus.PrometheusMetricsCollector;
-import org.compuscene.metrics.prometheus.PrometheusSettings;
-import org.opensearch.action.NodePrometheusMetricsRequest;
-import org.opensearch.action.NodePrometheusMetricsResponse;
+import org.opensearch.plugin.prometheus.collector.PrometheusMetricsCatalog;
+import org.opensearch.plugin.prometheus.collector.PrometheusMetricsCollector;
+import org.opensearch.plugin.prometheus.collector.PrometheusSettings;
+import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsRequest;
+import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsResponse;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
@@ -41,9 +54,6 @@ import org.opensearch.rest.action.RestResponseListener;
 
 import java.util.List;
 import java.util.Locale;
-
-import static java.util.Arrays.asList;
-import static java.util.Collections.unmodifiableList;
 
 /**
  * REST action class for Prometheus Exporter plugin.
@@ -84,9 +94,8 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
 
     @Override
     public List<Route> routes() {
-        return unmodifiableList(asList(
-            new Route(GET, "/_prometheus/metrics"))
-        );
+        return List.of(
+                new Route(GET, "/_prometheus/metrics"));
     }
 
     @Override
@@ -123,7 +132,6 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         PrometheusMetricsCollector collector;
                         String textContent;
                         try {
-//                            PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, nodeName, nodeId, metricPrefix);
                             PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, metricPrefix);
                             collector = new PrometheusMetricsCollector(
                                     catalog,

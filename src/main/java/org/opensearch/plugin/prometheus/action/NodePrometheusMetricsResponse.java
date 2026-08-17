@@ -1,4 +1,12 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+
+/*
  * Copyright [2016] [Vincent VAN HOLLEBEKE]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,14 +23,18 @@
  *
  */
 
-package org.opensearch.action;
+/*
+ * Modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ */
+
+package org.opensearch.plugin.prometheus.action;
 
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
-import org.opensearch.action.admin.indices.stats.PackageAccessHelper;
 import org.opensearch.common.Nullable;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.core.common.io.stream.StreamInput;
@@ -54,7 +66,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         clusterHealth = new ClusterHealthResponse(in);
         nodesInfoResponse = new NodesInfoResponse(in);
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
-        indicesStats = PackageAccessHelper.createIndicesStatsResponse(in);
+        indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
         clusterStatsData = new ClusterStatsData(in);
     }
 

@@ -1,4 +1,12 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+
+/*
  * Copyright [2024] [Lukáš VLČEK]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,7 +23,7 @@
  *
  */
 
-package org.opensearch.plugin.bwc;
+package org.opensearch.plugin.prometheus.bwc;
 
 import org.junit.Assert;
 import org.opensearch.Version;
@@ -59,16 +67,12 @@ public class PluginBackwardsCompatibilityIT extends OpenSearchRestTestCase {
         UPGRADED;
 
         public static ClusterType parse(String value) {
-            switch (value) {
-                case "old_cluster":
-                    return OLD;
-                case "mixed_cluster":
-                    return MIXED;
-                case "upgraded_cluster":
-                    return UPGRADED;
-                default:
-                    throw new AssertionError("unknown cluster type: " + value);
-            }
+            return switch (value) {
+                case "old_cluster" -> OLD;
+                case "mixed_cluster" -> MIXED;
+                case "upgraded_cluster" -> UPGRADED;
+                default -> throw new AssertionError("unknown cluster type: " + value);
+            };
         }
     }
 
