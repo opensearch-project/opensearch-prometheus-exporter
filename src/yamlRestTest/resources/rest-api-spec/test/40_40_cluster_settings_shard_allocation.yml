@@ -1,0 +1,125 @@
+---
+"Cluster settings statistics: shard allocation enable":
+
+  # -----------------------------------
+  # By default "cluster.routing.allocation.enable" is "all", which we encode as 0.
+  # OOTB there are no transient or persistent settings in the cluster:
+  - do:
+      cluster.get_settings:
+        flat_settings: true
+
+  - match: {persistent: {}}
+  - match: {transient: {}}
+
+  # Default (all) -> 0.0
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
+        opensearch_cluster_routing_allocation_enabled\{
+            cluster="yamlRestTest"
+        \,} \s 0\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # Set to "none" at the PERSISTENT level -> 3.0
+  - do:
+      cluster.put_settings:
+        body:
+          persistent:
+            cluster.routing.allocation.enable: none
+        flat_settings: true
+
+  - match: {persistent: {cluster.routing.allocation.enable: "none"}}
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
+        opensearch_cluster_routing_allocation_enabled\{
+            cluster="yamlRestTest"
+        \,} \s 3\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # Set "primaries" at the TRANSIENT level; transient overrides persistent -> 1.0
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.routing.allocation.enable: primaries
+        flat_settings: true
+
+  - match: {transient: {cluster.routing.allocation.enable: "primaries"}}
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
+        opensearch_cluster_routing_allocation_enabled\{
+            cluster="yamlRestTest"
+        \,} \s 1\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # Change transient to "new_primaries" -> 2.0
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.routing.allocation.enable: new_primaries
+        flat_settings: true
+
+  - match: {transient: {cluster.routing.allocation.enable: "new_primaries"}}
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
+        opensearch_cluster_routing_allocation_enabled\{
+            cluster="yamlRestTest"
+        \,} \s 2\.0 \n?
+        .*/
+
+  # -----------------------------------
+  # Clean up cluster state; back to default (all) -> 0.0
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.routing.allocation.enable: null
+          persistent:
+            cluster.routing.allocation.enable: null
+        flat_settings: true
+
+  - match: {transient: {}}
+  - match: {persistent: {}}
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
+        \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
+        opensearch_cluster_routing_allocation_enabled\{
+            cluster="yamlRestTest"
+        \,} \s 0\.0 \n?
+        .*/
