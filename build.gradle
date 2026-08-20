@@ -88,7 +88,6 @@ publishing {
 opensearchplugin {
     name pluginName
     description pluginDescription
-//    classname "${projectPath}.${pathToPlugin}.${pluginClassName}"
     classname pluginClassName
     licenseFile rootProject.file('LICENSE.txt')
     noticeFile rootProject.file('NOTICE.txt')
@@ -148,7 +147,7 @@ task integTest(type: RestIntegTestTask) {
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
     filter {
-        excludeTestsMatching "org.opensearch.plugin.bwc.*IT"
+        excludeTestsMatching "org.opensearch.plugin.prometheus.bwc.*IT"
     }
 }
 tasks.named("check").configure { dependsOn(integTest) }
@@ -244,7 +243,7 @@ List<Provider<RegularFile>> plugins = [
     task "${baseName}#oldVersionClusterTask$i"(type: RestIntegTestTask) {
         useCluster testClusters."${baseName}$i"
         filter {
-            includeTestsMatching "org.opensearch.plugin.bwc.*IT"
+            includeTestsMatching "org.opensearch.plugin.prometheus.bwc.*IT"
         }
         systemProperty 'tests.rest.bwcsuite', 'old_cluster'
         systemProperty 'tests.rest.bwcsuite_round', 'old'
@@ -265,7 +264,7 @@ task "${baseName}#mixedClusterTask"(type: RestIntegTestTask) {
         testClusters."${baseName}0".upgradeNodeAndPluginToNextVersion(plugins)
     }
     filter {
-        includeTestsMatching "org.opensearch.plugin.bwc.*IT"
+        includeTestsMatching "org.opensearch.plugin.prometheus.bwc.*IT"
     }
     systemProperty 'tests.rest.bwcsuite', 'mixed_cluster'
     systemProperty 'tests.rest.bwcsuite_round', 'first'
@@ -285,7 +284,7 @@ task "${baseName}#twoThirdsUpgradedClusterTask"(type: RestIntegTestTask) {
         testClusters."${baseName}0".upgradeNodeAndPluginToNextVersion(plugins)
     }
     filter {
-        includeTestsMatching "org.opensearch.plugin.bwc.*IT"
+        includeTestsMatching "org.opensearch.plugin.prometheus.bwc.*IT"
     }
     systemProperty 'tests.rest.bwcsuite', 'mixed_cluster'
     systemProperty 'tests.rest.bwcsuite_round', 'second'
@@ -305,7 +304,7 @@ task "${baseName}#rollingUpgradeClusterTask"(type: RestIntegTestTask) {
         testClusters."${baseName}0".upgradeNodeAndPluginToNextVersion(plugins)
     }
     filter {
-        includeTestsMatching "org.opensearch.plugin.bwc.*IT"
+        includeTestsMatching "org.opensearch.plugin.prometheus.bwc.*IT"
     }
     mustRunAfter "${baseName}#mixedClusterTask"
     systemProperty 'tests.rest.bwcsuite', 'mixed_cluster'
@@ -325,7 +324,7 @@ task "${baseName}#fullRestartClusterTask"(type: RestIntegTestTask) {
         testClusters."${baseName}1".upgradeAllNodesAndPluginsToNextVersion(plugins)
     }
     filter {
-        includeTestsMatching "org.opensearch.plugin.bwc.*IT"
+        includeTestsMatching "org.opensearch.plugin.prometheus.bwc.*IT"
     }
     systemProperty 'tests.rest.bwcsuite', 'upgraded_cluster'
     systemProperty 'tests.plugin_bwc_version', project.BWCPluginVersion

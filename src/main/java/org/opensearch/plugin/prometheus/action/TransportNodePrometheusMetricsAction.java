@@ -1,4 +1,12 @@
 /*
+ * SPDX-License-Identifier: Apache-2.0
+ *
+ * The OpenSearch Contributors require contributions made to
+ * this file be licensed under the Apache-2.0 license or a
+ * compatible open source license.
+ */
+
+/*
  * Copyright [2016] [Vincent VAN HOLLEBEKE]
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,11 +23,16 @@
  *
  */
 
-package org.opensearch.action;
+/*
+ * Modifications Copyright OpenSearch Contributors. See
+ * GitHub history for details.
+ */
+
+package org.opensearch.plugin.prometheus.action;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.compuscene.metrics.prometheus.PrometheusSettings;
+import org.opensearch.plugin.prometheus.collector.PrometheusSettings;
 import org.opensearch.OpenSearchException;
 import org.opensearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
