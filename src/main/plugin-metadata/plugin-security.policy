@@ -16,5 +16,6 @@
  */
 
 grant {
-    // No privileged operations are required, see #131
+    // ISMMetricsCollector calls the local OpenSearch HTTP API (ISM endpoints) via HttpURLConnection
+    permission java.net.SocketPermission "localhost:1024-", "connect,resolve";
 };

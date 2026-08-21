@@ -53,6 +53,14 @@ local variables = [
   + var.query.withSort(1)
   + var.query.withRefresh(1)
   + var.query.selectionOptions.withIncludeAll(true),
+
+  var.query.new('ism_policy', 'label_values(opensearch_ism_managed_indices_by_policy_total{cluster="$cluster"}, policy)')
+  + var.query.withDatasource('prometheus', '$datasource')
+  + var.query.generalOptions.withLabel('ISM Policy')
+  + var.query.generalOptions.showOnDashboard.withNothing()
+  + var.query.withSort(1)
+  + var.query.withRefresh(1)
+  + var.query.selectionOptions.withIncludeAll(true),
 ];
 
 // ==========================================
@@ -440,6 +448,120 @@ local jvmGCTimePanel =
   + { gridPos: { w: 8, h: 8 } };
 
 // ==========================================
+// ISM Panels
+// ==========================================
+local ismPolicyCountPanel =
+  panel.stat.new('ISM Policies')
+  + panel.stat.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.stat.queryOptions.withTargets([
+    promQuery('opensearch_ism_policy_count{cluster="$cluster"}'),
+  ])
+  + panel.stat.options.withGraphMode('none')
+  + { gridPos: { w: 4, h: 4 } };
+
+local ismManagedTotalPanel =
+  panel.stat.new('Managed Indices')
+  + panel.stat.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.stat.queryOptions.withTargets([
+    promQuery('opensearch_ism_managed_indices_total{cluster="$cluster"}'),
+  ])
+  + panel.stat.options.withGraphMode('none')
+  + { gridPos: { w: 4, h: 4 } };
+
+local ismFailedTotalStatPanel =
+  panel.stat.new('Failed Indices')
+  + panel.stat.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.stat.queryOptions.withTargets([
+    promQuery('opensearch_ism_failed_indices_total{cluster="$cluster"}'),
+  ])
+  + panel.stat.options.withColorMode('background')
+  + panel.stat.options.withGraphMode('none')
+  + panel.stat.standardOptions.thresholds.withMode('absolute')
+  + panel.stat.standardOptions.thresholds.withSteps([
+    { color: 'green', value: null },
+    { color: 'red', value: 1 },
+  ])
+  + { gridPos: { w: 4, h: 4 } };
+
+local ismManagedByPolicyPanel =
+  panel.timeSeries.new('Managed indices by policy')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery(
+      'opensearch_ism_managed_indices_by_policy_total{cluster="$cluster", policy=~"$ism_policy"}',
+      '{{policy}}'
+    ),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['lastNotNull', 'max'])
+  + { gridPos: { w: 12, h: 8 } };
+
+local ismManagedByStatePanel =
+  panel.timeSeries.new('Managed indices by policy / state')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery(
+      'opensearch_ism_managed_indices_by_state_total{cluster="$cluster", policy=~"$ism_policy"}',
+      '{{policy}} / {{state}}'
+    ),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['lastNotNull', 'max'])
+  + { gridPos: { w: 12, h: 8 } };
+
+local ismFailedTotalTimeseriesPanel =
+  panel.timeSeries.new('Total failed indices over time')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_ism_failed_indices_total{cluster="$cluster"}', 'failed'),
+  ])
+  + panel.timeSeries.fieldConfig.defaults.custom.withThresholdsStyle({ mode: 'line+area' })
+  + panel.timeSeries.standardOptions.thresholds.withMode('absolute')
+  + panel.timeSeries.standardOptions.thresholds.withSteps([
+    { color: 'green', value: null },
+    { color: 'red', value: 1 },
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(false)
+  + { gridPos: { w: 12, h: 8 } };
+
+local ismFailedByPolicyPanel =
+  panel.timeSeries.new('Failed indices by policy')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery(
+      'opensearch_ism_failed_indices_by_policy_total{cluster="$cluster", policy=~"$ism_policy"}',
+      '{{policy}}'
+    ),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['lastNotNull', 'max'])
+  + { gridPos: { w: 12, h: 8 } };
+
+local ismPolicyEnabledPanel =
+  panel.timeSeries.new('Policy enabled status (1 = enabled)')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery(
+      'opensearch_ism_policy_enabled_bool{cluster="$cluster", policy=~"$ism_policy"}',
+      '{{policy}}'
+    ),
+  ])
+  + panel.timeSeries.standardOptions.withMin(0)
+  + panel.timeSeries.standardOptions.withMax(1)
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['lastNotNull'])
+  + { gridPos: { w: 12, h: 6 } };
+
+// ==========================================
 // Rows
 // ==========================================
 local clusterRow = panel.row.new('Cluster');
@@ -450,6 +572,7 @@ local docsAndLatenciesRow = panel.row.new('Documents and Latencies');
 local cachesRow = panel.row.new('Caches');
 local throttlingRow = panel.row.new('Throttling');
 local jvmRow = panel.row.new('JVM');
+local ismRow = panel.row.new('ISM (Index State Management)');
 
 // ==========================================
 // Dashboard
@@ -516,6 +639,17 @@ local jvmRow = panel.row.new('JVM');
           jvmHeapUsedPanel,
           jvmGCCountPanel,
           jvmGCTimePanel,
+
+          // ISM row
+          ismRow,
+          ismPolicyCountPanel,
+          ismManagedTotalPanel,
+          ismFailedTotalStatPanel,
+          ismManagedByPolicyPanel,
+          ismManagedByStatePanel,
+          ismFailedTotalTimeseriesPanel,
+          ismFailedByPolicyPanel,
+          ismPolicyEnabledPanel,
         ], panelWidth=8, panelHeight=8)
       ),
   },
