@@ -40,6 +40,7 @@ import org.opensearch.common.Nullable;
 import org.opensearch.common.inject.Inject;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.unit.TimeValue;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
@@ -105,6 +106,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
         private final boolean isPrometheusClusterSettings = prometheusSettings.getPrometheusClusterSettings();
         private final String prometheusNodesFilter = prometheusSettings.getNodesFilter();
+        private final TimeValue stepTimeout = prometheusSettings.getScrapeStepTimeout();
 
         // All the requests are executed in sequential non-blocking order.
         // It is implemented by wrapping each individual request with ActionListener
@@ -127,6 +129,12 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
             this.localNodesInfoRequest = Requests.nodesInfoRequest("_local").clear();
 
             this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
+            // NodesStatsRequest scatters to every targeted node via TransportNodesAction. Without an explicit
+            // timeout, a single non-responding node (e.g. stuck in D-state) can stall this step indefinitely,
+            // which stalls the entire scrape chain. With timeout() set, a non-responding node's slot resolves
+            // as a per-node failure once the deadline passes, and onResponse() still fires with results from
+            // the nodes that did respond.
+            this.nodesStatsRequest.timeout(stepTimeout);
 
             // Indices stats request is not "node-specific", it does not support any "_local" notion
             // it is broad-casted to all cluster nodes.
@@ -134,6 +142,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 IndicesStatsRequest indicesStatsRequest = new IndicesStatsRequest();
                 indicesStatsRequest.indices(prometheusSettings.getPrometheusSelectedIndices());
                 indicesStatsRequest.indicesOptions(prometheusSettings.getIndicesOptions());
+                // IndicesStatsRequest broadcasts to all data nodes via TransportBroadcastByNodeAction.
+                // timeout() sets a per-node deadline via TransportRequestOptions; setShouldCancelOnTimeout(true)
+                // actively cancels child tasks on a stuck node when the deadline fires. When a node times out,
+                // its failure is stored in the response array and onResponse() still fires with partial results
+                // from the nodes that did respond.
+                indicesStatsRequest.timeout(stepTimeout);
+                indicesStatsRequest.setShouldCancelOnTimeout(true);
                 this.indicesStatsRequest = indicesStatsRequest;
             } else {
                 this.indicesStatsRequest = null;

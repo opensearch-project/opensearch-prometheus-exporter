@@ -126,6 +126,13 @@ dependencies {
     implementation group: 'io.prometheus', name: 'simpleclient', version: '0.16.0'
     implementation group: 'io.prometheus', name: 'simpleclient_common', version: '0.16.0'
     zipArchive group: 'org.opensearch.plugin.prometheus', name:'prometheus-exporter', version: "${versions.opensearch}"
+
+    def mockitoVersion = '5.23.0'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.2'
+    testImplementation "org.mockito:mockito-core:${mockitoVersion}"
+    testImplementation "org.mockito:mockito-junit-jupiter:${mockitoVersion}"
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.2'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
 restResources {
@@ -135,6 +142,7 @@ restResources {
 }
 
 test {
+    useJUnitPlatform()
     include '**/*Tests.class'
 }
 

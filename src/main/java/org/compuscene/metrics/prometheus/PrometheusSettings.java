@@ -22,6 +22,7 @@ import org.opensearch.core.common.Strings;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.common.unit.TimeValue;
 
 /**
  * Dynamically updatable Prometheus exporter settings.
@@ -67,6 +68,7 @@ public class PrometheusSettings {
     static String PROMETHEUS_NODES_FILTER_KEY = "prometheus.nodes.filter";
     static String PROMETHEUS_SELECTED_INDICES_KEY = "prometheus.indices_filter.selected_indices";
     static String PROMETHEUS_SELECTED_OPTION_KEY = "prometheus.indices_filter.selected_option";
+    static String PROMETHEUS_SCRAPE_STEP_TIMEOUT_KEY = "prometheus.scrape.step_timeout";
 
     /**
      * This setting is used configure weather to expose cluster settings metrics or not. The default value is true.
@@ -112,11 +114,23 @@ public class PrometheusSettings {
                     String.valueOf(INDEX_FILTER_OPTIONS.STRICT_EXPAND_OPEN_FORBID_CLOSED),
                     INDEX_FILTER_OPTIONS::valueOf, Setting.Property.Dynamic, Setting.Property.NodeScope);
 
+    /**
+     * Per-step timeout applied to each individual request the exporter makes while gathering a
+     * scrape (nodes stats, indices stats). Without a bound, a single non-responding node (e.g. one
+     * stuck in D-state under disk failure) can stall the whole scrape indefinitely, since these
+     * requests fan out to every node in the cluster. The default value is 5 seconds.
+     * Can be configured in opensearch.yml file or updated dynamically under key {@link #PROMETHEUS_SCRAPE_STEP_TIMEOUT_KEY}.
+     */
+    public static final Setting<TimeValue> PROMETHEUS_SCRAPE_STEP_TIMEOUT =
+            Setting.positiveTimeSetting(PROMETHEUS_SCRAPE_STEP_TIMEOUT_KEY, TimeValue.timeValueSeconds(5),
+                    Setting.Property.Dynamic, Setting.Property.NodeScope);
+
     private volatile boolean clusterSettings;
     private volatile boolean indices;
     private volatile String nodesFilter;
     private volatile String selectedIndices;
     private volatile INDEX_FILTER_OPTIONS selectedOption;
+    private volatile TimeValue scrapeStepTimeout;
 
     /**
      * A constructor.
@@ -129,11 +143,13 @@ public class PrometheusSettings {
         setPrometheusNodesFilter(PROMETHEUS_NODES_FILTER.get(settings));
         setPrometheusSelectedIndices(PROMETHEUS_SELECTED_INDICES.get(settings));
         setPrometheusSelectedOption(PROMETHEUS_SELECTED_OPTION.get(settings));
+        setScrapeStepTimeout(PROMETHEUS_SCRAPE_STEP_TIMEOUT.get(settings));
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_CLUSTER_SETTINGS, this::setPrometheusClusterSettings);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_INDICES, this::setPrometheusIndices);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_NODES_FILTER, this::setPrometheusNodesFilter);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_INDICES, this::setPrometheusSelectedIndices);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_OPTION, this::setPrometheusSelectedOption);
+        clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SCRAPE_STEP_TIMEOUT, this::setScrapeStepTimeout);
     }
 
     private void setPrometheusClusterSettings(boolean flag) {
@@ -152,6 +168,10 @@ public class PrometheusSettings {
 
     private void setPrometheusSelectedOption(INDEX_FILTER_OPTIONS selectedOption) {
         this.selectedOption = selectedOption;
+    }
+
+    private void setScrapeStepTimeout(TimeValue timeout) {
+        this.scrapeStepTimeout = timeout;
     }
 
     /**
@@ -182,6 +202,14 @@ public class PrometheusSettings {
      */
     public String[] getPrometheusSelectedIndices() {
         return Strings.splitStringByCommaToArray(this.selectedIndices);
+    }
+
+    /**
+     * Get value of settings key {@link #PROMETHEUS_SCRAPE_STEP_TIMEOUT_KEY}.
+     * @return TimeValue of the key
+     */
+    public TimeValue getScrapeStepTimeout() {
+        return this.scrapeStepTimeout;
     }
 
     /**
