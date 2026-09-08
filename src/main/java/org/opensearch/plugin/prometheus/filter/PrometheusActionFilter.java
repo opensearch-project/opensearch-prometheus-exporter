@@ -27,9 +27,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import static org.opensearch.plugin.prometheus.collector.PrometheusMetricsCatalog.NODE_LABEL_NAMES;
 
 /**
  * <p>
@@ -80,8 +83,6 @@ public class PrometheusActionFilter implements ActionFilter {
     private static final String OUTCOME_SUCCESS = "success";
     private static final String OUTCOME_CLIENT_ERROR = "client_error";
     private static final String OUTCOME_SERVER_ERROR = "server_error";
-
-    private static final List<String> NODE_LABEL_NAMES = List.of("cluster", "node", "nodeid");
 
     private final CollectorRegistry registry;
     private final Map<String, ActionMetrics> metricsByAction;
@@ -187,9 +188,12 @@ public class PrometheusActionFilter implements ActionFilter {
             String nodeId) {
 
         List<String> nodeLabelValues = List.of(clusterName, nodeName, nodeId);
+        assert nodeLabelValues.size() == NODE_LABEL_NAMES.size();
         List<Collector.MetricFamilySamples> labelled = new ArrayList<>();
 
-        for (Collector.MetricFamilySamples family : Collections.list(registry.metricFamilySamples())) {
+        Iterator<Collector.MetricFamilySamples> iter = registry.metricFamilySamples().asIterator();
+        while (iter.hasNext()) {
+            Collector.MetricFamilySamples family = iter.next();
             List<Collector.MetricFamilySamples.Sample> samples = new ArrayList<>(family.samples.size());
             for (Collector.MetricFamilySamples.Sample sample : family.samples) {
                 List<String> labelNames = new ArrayList<>(NODE_LABEL_NAMES);

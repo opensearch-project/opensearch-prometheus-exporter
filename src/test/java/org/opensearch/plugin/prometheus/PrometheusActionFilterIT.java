@@ -50,6 +50,7 @@ import java.util.stream.Collectors;
  * pinned to a single node, so that the node doing the work is also the node being scraped. Using
  * {@link #getRestClient()} would round-robin across the cluster and make the counts non-deterministic.
  */
+@SuppressWarnings("deprecation") // RestClient is deprecated in favor of opensearch-java, but it's convenient for integration testing
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 public class PrometheusActionFilterIT extends OpenSearchIntegTestCase {
 
