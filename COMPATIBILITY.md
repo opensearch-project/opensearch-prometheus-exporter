@@ -4,7 +4,7 @@ NOTE: OpenSearch plugins must match _exactly_ in major.minor.patch version to th
 
 | OpenSearch |      Plugin |  Release date |
 |-----------:|------------:|--------------:|
-|      3.8.0 |     3.8.0.0 |  Aug 10, 2026 |
+|      3.8.0 |     3.8.0.0 |  Aug 21, 2026 |
 |      3.7.0 |     3.7.0.0 |  Jun 10, 2026 |
 |      3.6.0 |     3.6.0.0 |  Apr 16, 2026 |
 |      3.5.0 |     3.5.0.0 |  Feb 11, 2026 |
@@ -15,6 +15,9 @@ NOTE: OpenSearch plugins must match _exactly_ in major.minor.patch version to th
 |      3.2.0 |     3.2.0.0 |  Aug 19, 2025 |
 |      3.1.0 |     3.1.0.0 |  Aug 08, 2025 |
 |      3.0.0 |     3.0.0.0 |  Aug 08, 2025 |
+|     2.19.6 |    2.19.6.0 |  Aug 28, 2026 |
+|     2.19.5 |    2.19.5.0 |  Mar 12, 2026 |
+|     2.19.4 |    2.19.4.0 |  Dec 10, 2025 |
 |     2.19.3 |    2.19.3.0 |  Aug 04, 2025 |
 |     2.19.2 |    2.19.2.0 |  Aug 04, 2025 |
 |     2.19.1 |    2.19.1.0 |  Aug 01, 2025 |
