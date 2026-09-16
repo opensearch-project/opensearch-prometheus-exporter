@@ -30,6 +30,10 @@
 
 package org.opensearch.plugin.prometheus.collector;
 
+import io.prometheus.client.Collector;
+import io.prometheus.client.CollectorRegistry;
+import io.prometheus.client.Gauge;
+import io.prometheus.client.Summary;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.common.collect.Tuple;
@@ -39,11 +43,9 @@ import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Locale;
 
-import io.prometheus.client.CollectorRegistry;
-import io.prometheus.client.Gauge;
-import io.prometheus.client.Summary;
 import io.prometheus.client.exporter.common.TextFormat;
 
 /**
@@ -52,11 +54,12 @@ import io.prometheus.client.exporter.common.TextFormat;
 public class PrometheusMetricsCatalog {
     private static final Logger logger = LogManager.getLogger(RestPrometheusMetricsAction.class);
 
-    private String clusterName;
-    private String metricPrefix;
+    private final String clusterName;
+    private final String metricPrefix;
 
-    private HashMap<String, Object> metrics;
-    private CollectorRegistry registry;
+    private final HashMap<String, Collector> metrics;
+    private final CollectorRegistry registry;
+    public static final List<String> NODE_LABEL_NAMES = List.of("cluster", "node", "nodeid");
 
     /**
      * Creates a new PrometheusMetricsCatalog for the given cluster and metric prefix.
@@ -90,12 +93,12 @@ public class PrometheusMetricsCatalog {
     }
 
     private String[] getExtendedNodeLabelNames(String... labelNames) {
-        String[] extended = new String[labelNames.length + 3];
-        extended[0] = "cluster";
-        extended[1] = "node";
-        extended[2] = "nodeid";
+        String[] extended = new String[labelNames.length + NODE_LABEL_NAMES.size()];
+        for (int i = 0; i < NODE_LABEL_NAMES.size(); i++) {
+           extended[i] = NODE_LABEL_NAMES.get(i);
+        }
 
-        System.arraycopy(labelNames, 0, extended, 3, labelNames.length);
+        System.arraycopy(labelNames, 0, extended, NODE_LABEL_NAMES.size(), labelNames.length);
 
         return extended;
     }
