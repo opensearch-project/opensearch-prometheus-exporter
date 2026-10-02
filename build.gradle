@@ -119,6 +119,7 @@ configurations {
 
 configurations.all {
     resolutionStrategy.force 'com.google.errorprone:error_prone_annotations:2.49.0'
+    resolutionStrategy.force 'org.jspecify:jspecify:1.0.1'
 }
 
 dependencies {
