@@ -40,6 +40,7 @@ import org.opensearch.plugin.prometheus.collector.PrometheusMetricsCollector;
 import org.opensearch.plugin.prometheus.collector.PrometheusSettings;
 import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsRequest;
 import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsResponse;
+import org.opensearch.plugin.prometheus.filter.PrometheusActionFilter;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
 import org.opensearch.rest.RestRequest;
@@ -52,6 +53,11 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.rest.action.RestResponseListener;
 
+import io.prometheus.client.exporter.common.TextFormat;
+
+import java.io.IOException;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.util.List;
 import java.util.Locale;
 
@@ -77,16 +83,20 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
 
     private final String metricPrefix;
     private final PrometheusSettings prometheusSettings;
+    private final PrometheusActionFilter actionFilter;
     private final Logger logger = LogManager.getLogger(getClass());
 
     /**
      * A constructor.
      * @param settings Settings
      * @param clusterSettings Cluster settings
+     * @param actionFilter The filter holding the latency metrics accumulated on this node
      */
-    public RestPrometheusMetricsAction(Settings settings, ClusterSettings clusterSettings) {
+    public RestPrometheusMetricsAction(Settings settings, ClusterSettings clusterSettings,
+                                       PrometheusActionFilter actionFilter) {
         this.prometheusSettings = new PrometheusSettings(settings, clusterSettings);
         this.metricPrefix = METRIC_PREFIX.get(settings);
+        this.actionFilter = actionFilter;
         if (logger.isTraceEnabled()) {
             logger.trace("Prometheus metric prefix set to [{}]", this.metricPrefix);
         }
@@ -142,7 +152,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
                                     response.getIndicesStats(), response.getClusterStatsData());
-                            textContent = collector.getTextContent();
+                            textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
                             // and dump it into the log, otherwise client needs to know how to configure logging to output
@@ -161,5 +171,14 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         return new BytesRestResponse(RestStatus.OK, textContent);
                     }
                 });
+    }
+
+    // The action filter accumulates its metrics across requests, so it keeps its own long-lived registry
+    // rather than the per-request one owned by the catalog. Both are rendered in the same text format
+    // response; concatenating is safe because the two registries do not share metric names.
+    private String actionMetricsTextContent(String clusterName, String nodeName, String nodeId) throws IOException {
+        Writer writer = new StringWriter();
+        TextFormat.write004(writer, actionFilter.metricFamilySamples(clusterName, nodeName, nodeId));
+        return writer.toString();
     }
 }

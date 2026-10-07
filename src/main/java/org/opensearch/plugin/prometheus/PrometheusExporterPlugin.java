@@ -36,6 +36,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.plugin.prometheus.collector.PrometheusSettings;
 import org.opensearch.action.ActionRequest;
+import org.opensearch.action.support.ActionFilter;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Setting;
@@ -44,6 +45,7 @@ import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsAction;
 import org.opensearch.plugin.prometheus.action.TransportNodePrometheusMetricsAction;
+import org.opensearch.plugin.prometheus.filter.PrometheusActionFilter;
 import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
 import org.opensearch.cluster.node.DiscoveryNodes;
 import org.opensearch.plugins.ActionPlugin;
@@ -63,11 +65,23 @@ import java.util.function.Supplier;
 public class PrometheusExporterPlugin extends Plugin implements ActionPlugin {
     private static final Logger logger = LogManager.getLogger(PrometheusExporterPlugin.class);
 
+    // The action filter accumulates metrics across requests, so a single instance is shared between the
+    // filter chain that populates it and the REST handler that exposes it.
+    private final PrometheusActionFilter actionFilter;
+
     /**
      * A constructor.
+     *
+     * @param settings Settings
      */
-    public PrometheusExporterPlugin() {
+    public PrometheusExporterPlugin(Settings settings) {
         logger.info("starting Prometheus exporter plugin");
+        this.actionFilter = new PrometheusActionFilter(RestPrometheusMetricsAction.METRIC_PREFIX.get(settings));
+    }
+
+    @Override
+    public List<ActionFilter> getActionFilters() {
+        return singletonList(actionFilter);
     }
 
     @Override
@@ -83,7 +97,7 @@ public class PrometheusExporterPlugin extends Plugin implements ActionPlugin {
                                              IndexNameExpressionResolver indexNameExpressionResolver,
                                              Supplier<DiscoveryNodes> nodesInCluster) {
         return singletonList(
-                new RestPrometheusMetricsAction(settings, clusterSettings)
+                new RestPrometheusMetricsAction(settings, clusterSettings, actionFilter)
         );
     }
 
