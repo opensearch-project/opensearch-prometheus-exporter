@@ -23,7 +23,7 @@
   - match:
       $body: |
         /.*
-        \# \s HELP \s opensearch_indices_search_concurrent_query_current_number \s Current \s rate \s of \s search \s queries \s that \s use \s concurrent \s segment \s search \n
+        \# \s HELP \s opensearch_indices_search_concurrent_query_current_number \s Number \s of \s search \s queries \s that \s use \s concurrent \s segment \s search \s currently \s in \s progress \n
         \# \s TYPE \s opensearch_indices_search_concurrent_query_current_number \s gauge \n
         opensearch_indices_search_concurrent_query_current_number\{
             cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
