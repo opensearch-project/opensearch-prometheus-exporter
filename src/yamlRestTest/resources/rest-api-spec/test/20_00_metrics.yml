@@ -22,6 +22,12 @@
   - match:
       $body: /# HELP opensearch_os_swap_total_bytes Total swap size\n# TYPE opensearch_os_swap_total_bytes gauge\n.*/
 
+  - match:
+      $body: /.*\# \s HELP \s opensearch_indices_querycache_cache_size_number (\s|\w|\d)+ \n \# \s TYPE \s opensearch_indices_querycache_cache_size_number \s gauge \n .*/
+
+  - match:
+      $body: /.*\# \s HELP \s opensearch_indices_merges_total_auto_throttle_bytes_per_second (\s|\w|\d)+ \n \# \s TYPE \s opensearch_indices_merges_total_auto_throttle_bytes_per_second \s gauge \n .*/
+
 
 #---
 #"Pull Prometheus metrics from individual nodes":

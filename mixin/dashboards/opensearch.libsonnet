@@ -329,7 +329,7 @@ local cacheQuerySizePanel =
   + timeSeriesBase
   + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
   + panel.timeSeries.queryOptions.withTargets([
-    promQuery('opensearch_indices_querycache_cache_size_bytes{cluster="$cluster", node=~"$node"}', '{{node}}'),
+    promQuery('opensearch_indices_querycache_cache_size_number{cluster="$cluster", node=~"$node"}', '{{node}}'),
   ])
   + panel.timeSeries.options.legend.withShowLegend(true)
   + panel.timeSeries.options.legend.withDisplayMode('table')

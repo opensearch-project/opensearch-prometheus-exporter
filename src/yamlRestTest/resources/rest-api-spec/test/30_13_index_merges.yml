@@ -145,3 +145,15 @@
           ,\} \s+ \d+\.\d+([eE]\d+)? \n?
         ){2}
         .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_merges_total_auto_throttle_bytes_per_second (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_merges_total_auto_throttle_bytes_per_second \s gauge \n
+        (
+          opensearch_index_merges_total_auto_throttle_bytes_per_second\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+([eE]\d+)? \n?
+        ){2}
+        .*/
