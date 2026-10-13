@@ -140,7 +140,7 @@ public class PrometheusMetricsCollector {
             catalog.setClusterGauge("cluster_shards_number", chr.getUnassignedShards(), "unassigned");
 
             catalog.setClusterGauge("cluster_pending_tasks_number", chr.getNumberOfPendingTasks());
-            catalog.setClusterGauge("cluster_task_max_waiting_time_seconds", chr.getTaskMaxWaitingTime().getSeconds());
+            catalog.setClusterGauge("cluster_task_max_waiting_time_seconds", chr.getTaskMaxWaitingTime().getMillis() / 1000.0);
 
             catalog.setClusterGauge("cluster_is_timedout_bool", chr.isTimedOut() ? 1 : 0);
 
@@ -735,7 +735,7 @@ public class PrometheusMetricsCollector {
     private void updateProcessMetrics(Tuple<String, String> nodeInfo, ProcessStats ps) {
         if (ps != null) {
             catalog.setNodeGauge(nodeInfo, "process_cpu_percent", ps.getCpu().getPercent());
-            catalog.setNodeGauge(nodeInfo, "process_cpu_time_seconds", ps.getCpu().getTotal().getSeconds());
+            catalog.setNodeGauge(nodeInfo, "process_cpu_time_seconds", ps.getCpu().getTotal().getMillis() / 1000.0);
 
             catalog.setNodeGauge(nodeInfo, "process_mem_total_virtual_bytes", ps.getMem().getTotalVirtual().getBytes());
 
@@ -799,7 +799,7 @@ public class PrometheusMetricsCollector {
             for (JvmStats.GarbageCollector gc : jvm.getGc().getCollectors()) {
                 String name = gc.getName();
                 catalog.setNodeGauge(nodeInfo, "jvm_gc_collection_count", gc.getCollectionCount(), name);
-                catalog.setNodeGauge(nodeInfo, "jvm_gc_collection_time_seconds", gc.getCollectionTime().getSeconds(), name);
+                catalog.setNodeGauge(nodeInfo, "jvm_gc_collection_time_seconds", gc.getCollectionTime().getMillis() / 1000.0, name);
             }
 
             for (JvmStats.BufferPool bp : jvm.getBufferPools()) {
