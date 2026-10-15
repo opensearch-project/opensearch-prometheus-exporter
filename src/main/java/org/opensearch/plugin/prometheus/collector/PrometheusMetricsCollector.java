@@ -373,6 +373,7 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_status", "Index status", "index");
         catalog.registerClusterGauge("index_replicas_number", "Number of replicas", "index");
         catalog.registerClusterGauge("index_shards_number", "Number of shards", "type", "index");
+        catalog.registerClusterGauge("indices_mappings_stats_fields", "Current number of fields within each index", "index");
 
         catalog.registerClusterGauge("index_doc_number", "Total number of documents", "index", "context");
         catalog.registerClusterGauge("index_doc_deleted_number", "Number of deleted documents", "index", "context");
@@ -957,7 +958,8 @@ public class PrometheusMetricsCollector {
                               @Nullable ClusterHealthResponse clusterHealthResponse,
                               NodeStats[] nodeStats,
                               @Nullable IndicesStatsResponse indicesStats,
-                              @Nullable ClusterStatsData clusterStatsData) {
+                              @Nullable ClusterStatsData clusterStatsData,
+                              Map<String, Long> indexMappingFieldCounts) {
         Summary.Timer timer = catalog.startSummaryTimer(
                 new Tuple<>(originNodeName, originNodeId),
                 "metrics_generate_time_seconds");
@@ -984,12 +986,19 @@ public class PrometheusMetricsCollector {
         }
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
+            updateIndexMappingMetrics(indexMappingFieldCounts);
         }
         if (isPrometheusClusterSettings) {
             updateESSettings(clusterStatsData);
         }
 
         timer.observeDuration();
+    }
+
+    private void updateIndexMappingMetrics(Map<String, Long> indexMappingFieldCounts) {
+        for (Map.Entry<String, Long> entry : indexMappingFieldCounts.entrySet()) {
+            catalog.setClusterGauge("indices_mappings_stats_fields", entry.getValue(), entry.getKey());
+        }
     }
 
     /**

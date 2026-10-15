@@ -41,8 +41,13 @@ import org.opensearch.plugin.prometheus.collector.PrometheusSettings;
 import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsRequest;
 import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsResponse;
 import org.opensearch.plugin.prometheus.filter.PrometheusActionFilter;
+import org.opensearch.action.admin.indices.mapping.get.GetMappingsRequest;
+import org.opensearch.action.admin.indices.mapping.get.GetMappingsResponse;
+import org.opensearch.cluster.metadata.MappingMetadata;
+import org.opensearch.core.action.ActionListener;
 import org.opensearch.rest.BaseRestHandler;
 import org.opensearch.rest.BytesRestResponse;
+import org.opensearch.rest.RestChannel;
 import org.opensearch.rest.RestRequest;
 import org.opensearch.rest.RestResponse;
 import org.opensearch.transport.client.node.NodeClient;
@@ -58,8 +63,10 @@ import io.prometheus.client.exporter.common.TextFormat;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * REST action class for Prometheus Exporter plugin.
@@ -123,11 +130,32 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                     remoteAddress));
         }
 
-        NodePrometheusMetricsRequest metricsRequest = new NodePrometheusMetricsRequest();
+        return channel -> {
+            if (prometheusSettings.getPrometheusIndices()) {
+                GetMappingsRequest mappingsRequest = new GetMappingsRequest();
+                mappingsRequest.indices(prometheusSettings.getPrometheusSelectedIndices());
+                mappingsRequest.indicesOptions(prometheusSettings.getIndicesOptions());
+                client.admin().indices().getMappings(mappingsRequest, new ActionListener<GetMappingsResponse>() {
+                    @Override
+                    public void onResponse(GetMappingsResponse response) {
+                        executeMetricsRequest(client, channel, getIndexMappingFieldCounts(response));
+                    }
 
-        return channel -> client.execute(INSTANCE, metricsRequest,
+                    @Override
+                    public void onFailure(Exception e) {
+                        logger.warn("Failed to fetch index mappings stats", e);
+                        executeMetricsRequest(client, channel, Map.of());
+                    }
+                });
+            } else {
+                executeMetricsRequest(client, channel, Map.of());
+            }
+        };
+    }
+
+    private void executeMetricsRequest(NodeClient client, RestChannel channel, Map<String, Long> indexMappingFieldCounts) {
+        client.execute(INSTANCE, new NodePrometheusMetricsRequest(),
                 new RestResponseListener<NodePrometheusMetricsResponse>(channel) {
-
                     @Override
                     public RestResponse buildResponse(NodePrometheusMetricsResponse response) throws Exception {
 
@@ -151,7 +179,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.registerMetrics();
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
-                                    response.getIndicesStats(), response.getClusterStatsData());
+                                    response.getIndicesStats(), response.getClusterStatsData(), indexMappingFieldCounts);
                             textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
@@ -171,6 +199,51 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         return new BytesRestResponse(RestStatus.OK, textContent);
                     }
                 });
+    }
+
+    private Map<String, Long> getIndexMappingFieldCounts(GetMappingsResponse response) {
+        Map<String, Long> fieldCounts = new HashMap<>();
+        for (Map.Entry<String, MappingMetadata> entry : response.getMappings().entrySet()) {
+            try {
+                Object properties = entry.getValue().sourceAsMap().get("properties");
+                if (properties instanceof Map) {
+                    fieldCounts.put(entry.getKey(), countFieldsRecursive((Map<String, Object>) properties));
+                } else {
+                    fieldCounts.put(entry.getKey(), 0L);
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to parse mappings for index [{}]", entry.getKey(), e);
+            }
+        }
+        return fieldCounts;
+    }
+
+    @SuppressWarnings("unchecked")
+    private long countFieldsRecursive(Map<String, Object> properties) {
+        long count = 0;
+        for (Object propertyValue : properties.values()) {
+            if (!(propertyValue instanceof Map)) {
+                continue;
+            }
+            Map<String, Object> property = (Map<String, Object>) propertyValue;
+            Object type = property.get("type");
+            if (type instanceof String && !"object".equals(type)) {
+                count++;
+                Object fields = property.get("fields");
+                if (fields instanceof Map) {
+                    for (Object fieldValue : ((Map<String, Object>) fields).values()) {
+                        if (fieldValue instanceof Map && ((Map<String, Object>) fieldValue).get("type") instanceof String) {
+                            count++;
+                        }
+                    }
+                }
+            }
+            Object nestedProperties = property.get("properties");
+            if (nestedProperties instanceof Map) {
+                count += 1 + countFieldsRecursive((Map<String, Object>) nestedProperties);
+            }
+        }
+        return count;
     }
 
     // The action filter accumulates its metrics across requests, so it keeps its own long-lived registry

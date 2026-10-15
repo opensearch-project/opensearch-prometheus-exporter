@@ -60,6 +60,16 @@
         ,\} \s+ \d+\.\d+ \n?
         .*/
 
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_indices_mappings_stats_fields (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_indices_mappings_stats_fields \s gauge \n
+        opensearch_indices_mappings_stats_fields\{
+            cluster="yamlRestTest",index="twitter"
+        ,\} \s+ 2\.0 \n?
+        .*/
+
 ---
 "Index level statistics (general)":
 
