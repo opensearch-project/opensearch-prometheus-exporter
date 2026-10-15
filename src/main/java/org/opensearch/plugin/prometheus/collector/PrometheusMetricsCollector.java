@@ -953,6 +953,7 @@ public class PrometheusMetricsCollector {
      * @param nodeStats                 NodeStats filtered using nodes filter
      * @param indicesStats              IndicesStatsResponse
      * @param clusterStatsData          ClusterStatsData
+     * @param indexMappingFieldCounts   Number of mapped fields per index
      */
     public void updateMetrics(String originNodeName, String originNodeId,
                               @Nullable ClusterHealthResponse clusterHealthResponse,
