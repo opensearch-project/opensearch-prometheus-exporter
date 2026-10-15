@@ -224,7 +224,8 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_merges_total_size_bytes", "Count of bytes of merged documents");
         catalog.registerNodeGauge("indices_merges_total_stopped_time_seconds", "Time spent while merge process stopped");
         catalog.registerNodeGauge("indices_merges_total_throttled_time_seconds", "Time spent while merging when throttling");
-        catalog.registerNodeGauge("indices_merges_total_auto_throttle_bytes", "Bytes merged while throttling");
+        catalog.registerNodeGauge("indices_merges_total_auto_throttle_bytes", "Deprecated use indices_merges_total_auto_throttle_bytes_per_second");
+        catalog.registerNodeGauge("indices_merges_total_auto_throttle_bytes_per_second", "Sum of merge auto throttle IO rate limits in bytes per second");
 
         catalog.registerNodeGauge("indices_refresh_total_count", "Count of refreshes");
         catalog.registerNodeGauge("indices_refresh_total_time_seconds", "Time spent while refreshes");
@@ -234,7 +235,8 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_flush_total_time_seconds", "Total time spent while flushes");
 
         catalog.registerNodeGauge("indices_querycache_cache_count", "Count of queries in cache");
-        catalog.registerNodeGauge("indices_querycache_cache_size_bytes", "Query cache size");
+        catalog.registerNodeGauge("indices_querycache_cache_size_bytes", "Deprecated use indices_querycache_cache_size_number");
+        catalog.registerNodeGauge("indices_querycache_cache_size_number", "Number of entries in query cache");
         catalog.registerNodeGauge("indices_querycache_evictions_count", "Count of evictions in query cache");
         catalog.registerNodeGauge("indices_querycache_hit_count", "Count of hits in query cache");
         catalog.registerNodeGauge("indices_querycache_memory_size_bytes", "Memory usage of query cache");
@@ -327,6 +329,7 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_merges_total_throttled_time_seconds",
                     idx.getMerge().getTotalThrottledTimeInMillis() / 1000.0);
             catalog.setNodeGauge(nodeInfo,"indices_merges_total_auto_throttle_bytes", idx.getMerge().getTotalBytesPerSecAutoThrottle());
+            catalog.setNodeGauge(nodeInfo,"indices_merges_total_auto_throttle_bytes_per_second", idx.getMerge().getTotalBytesPerSecAutoThrottle());
 
             catalog.setNodeGauge(nodeInfo,"indices_refresh_total_count", idx.getRefresh().getTotal());
             catalog.setNodeGauge(nodeInfo,"indices_refresh_total_time_seconds", idx.getRefresh().getTotalTimeInMillis() / 1000.0);
@@ -337,6 +340,7 @@ public class PrometheusMetricsCollector {
 
             catalog.setNodeGauge(nodeInfo,"indices_querycache_cache_count", idx.getQueryCache().getCacheCount());
             catalog.setNodeGauge(nodeInfo,"indices_querycache_cache_size_bytes", idx.getQueryCache().getCacheSize());
+            catalog.setNodeGauge(nodeInfo,"indices_querycache_cache_size_number", idx.getQueryCache().getCacheSize());
             catalog.setNodeGauge(nodeInfo,"indices_querycache_evictions_count", idx.getQueryCache().getEvictions());
             catalog.setNodeGauge(nodeInfo,"indices_querycache_hit_count", idx.getQueryCache().getHitCount());
             catalog.setNodeGauge(nodeInfo,"indices_querycache_memory_size_bytes", idx.getQueryCache().getMemorySizeInBytes());
@@ -418,7 +422,8 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_merges_total_size_bytes", "Count of bytes of merged documents", "index", "context");
         catalog.registerClusterGauge("index_merges_total_stopped_time_seconds", "Time spent while merge process stopped", "index", "context");
         catalog.registerClusterGauge("index_merges_total_throttled_time_seconds", "Time spent while merging when throttling", "index", "context");
-        catalog.registerClusterGauge("index_merges_total_auto_throttle_bytes", "Bytes merged while throttling", "index", "context");
+        catalog.registerClusterGauge("index_merges_total_auto_throttle_bytes", "Deprecated use index_merges_total_auto_throttle_bytes_per_second", "index", "context");
+        catalog.registerClusterGauge("index_merges_total_auto_throttle_bytes_per_second", "Sum of merge auto throttle IO rate limits in bytes per second", "index", "context");
 
         catalog.registerClusterGauge("index_refresh_total_count", "Count of refreshes", "index", "context");
         catalog.registerClusterGauge("index_refresh_total_time_seconds", "Time spent while refreshes", "index", "context");
@@ -428,7 +433,8 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_flush_total_time_seconds", "Total time spent while flushes", "index", "context");
 
         catalog.registerClusterGauge("index_querycache_cache_count", "Count of queries in cache", "index", "context");
-        catalog.registerClusterGauge("index_querycache_cache_size_bytes", "Query cache size", "index", "context");
+        catalog.registerClusterGauge("index_querycache_cache_size_bytes", "Deprecated use index_querycache_cache_size_number", "index", "context");
+        catalog.registerClusterGauge("index_querycache_cache_size_number", "Number of entries in query cache", "index", "context");
         catalog.registerClusterGauge("index_querycache_evictions_count", "Count of evictions in query cache", "index", "context");
         catalog.registerClusterGauge("index_querycache_hit_count", "Count of hits in query cache", "index", "context");
         catalog.registerClusterGauge("index_querycache_memory_size_bytes", "Memory usage of query cache", "index", "context");
@@ -538,6 +544,7 @@ public class PrometheusMetricsCollector {
         catalog.setClusterGauge("index_merges_total_stopped_time_seconds", idx.getMerge().getTotalStoppedTimeInMillis() / 1000.0, indexName, context);
         catalog.setClusterGauge("index_merges_total_throttled_time_seconds", idx.getMerge().getTotalThrottledTimeInMillis() / 1000.0, indexName, context);
         catalog.setClusterGauge("index_merges_total_auto_throttle_bytes", idx.getMerge().getTotalBytesPerSecAutoThrottle(), indexName, context);
+        catalog.setClusterGauge("index_merges_total_auto_throttle_bytes_per_second", idx.getMerge().getTotalBytesPerSecAutoThrottle(), indexName, context);
 
         catalog.setClusterGauge("index_refresh_total_count", idx.getRefresh().getTotal(), indexName, context);
         catalog.setClusterGauge("index_refresh_total_time_seconds", idx.getRefresh().getTotalTimeInMillis() / 1000.0, indexName, context);
@@ -548,6 +555,7 @@ public class PrometheusMetricsCollector {
 
         catalog.setClusterGauge("index_querycache_cache_count", idx.getQueryCache().getCacheCount(), indexName, context);
         catalog.setClusterGauge("index_querycache_cache_size_bytes", idx.getQueryCache().getCacheSize(), indexName, context);
+        catalog.setClusterGauge("index_querycache_cache_size_number", idx.getQueryCache().getCacheSize(), indexName, context);
         catalog.setClusterGauge("index_querycache_evictions_count", idx.getQueryCache().getEvictions(), indexName, context);
         catalog.setClusterGauge("index_querycache_hit_count", idx.getQueryCache().getHitCount(), indexName, context);
         catalog.setClusterGauge("index_querycache_memory_size_bytes", idx.getQueryCache().getMemorySizeInBytes(), indexName, context);

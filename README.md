@@ -191,6 +191,17 @@ opensearch_jvm_mem_nonheap_used_bytes{cluster="develop",node="develop01",} 5.530
 ...
 ```
 
+### Deprecated metrics
+
+These metrics are exported alongside their replacements with the same values, and will be removed in the next major release ([#619](https://github.com/opensearch-project/opensearch-prometheus-exporter/issues/619)):
+
+| Deprecated | Replacement | Reason |
+|---|---|---|
+| `*_querycache_cache_size_bytes` | `*_querycache_cache_size_number` | The value is the number of entries in the query cache, not bytes. |
+| `*_merges_total_auto_throttle_bytes` | `*_merges_total_auto_throttle_bytes_per_second` | The value is the sum of merge auto throttle IO rate limits in bytes per second. |
+
+Both apply to the node level (`indices_*`) and index level (`index_*`) metrics.
+
 ### Configure the Prometheus target
 
 On your Prometheus servers, configure a new job as usual.
