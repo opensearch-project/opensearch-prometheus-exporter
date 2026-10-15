@@ -113,6 +113,18 @@
   - match:
       $body: |
         /.*
+        \# \s HELP \s opensearch_index_search_query_failed_count (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_search_query_failed_count \s gauge \n
+        (
+          opensearch_index_search_query_failed_count\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
         \# \s HELP \s opensearch_index_search_scroll_count (\s|\w|\d)+ \n
         \# \s TYPE \s opensearch_index_search_scroll_count \s gauge \n
         (
@@ -144,4 +156,20 @@
               cluster="yamlRestTest",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
+        .*/
+
+---
+"Node level search statistics":
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_indices_search_query_failed_count (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_indices_search_query_failed_count \s gauge \n
+        opensearch_indices_search_query_failed_count\{
+            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+        ,\} \s+ \d+\.\d+
         .*/
