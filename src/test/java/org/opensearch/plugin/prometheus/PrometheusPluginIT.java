@@ -30,9 +30,11 @@ import org.apache.hc.core5.http.ParseException;
 import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.info.PluginsAndModules;
+import org.opensearch.action.admin.indices.stats.CommonStats;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
+import org.opensearch.common.settings.Settings;
 import org.opensearch.plugins.Plugin;
 import org.opensearch.test.OpenSearchIntegTestCase;
 
@@ -40,6 +42,10 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAcked;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 // CS-SUPPRESS-SINGLE: RegexpSingleline supportsDedicatedMasters is an OpenSearch API with no alternative
@@ -77,5 +83,44 @@ public class PrometheusPluginIT extends OpenSearchIntegTestCase {
         assertEquals("text/plain; charset=UTF-8", response.getEntity().getContentType());
         String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
         assertTrue(body.startsWith("# HELP"));
+    }
+
+    /**
+     * Index level time metrics must export the index stats as fractional seconds.
+     */
+    public void testIndexTimeMetricsInSeconds() throws IOException, ParseException {
+        String index = "time-units";
+        assertAcked(prepareCreate(index).setSettings(Settings.builder()
+                .put("index.number_of_shards", 1)
+                .put("index.number_of_replicas", 0)
+                // No scheduled refreshes, so stats can't move between the two reads.
+                .put("index.refresh_interval", "-1")));
+        for (int i = 0; i < 100; i++) {
+            client().prepareIndex(index).setId(String.valueOf(i)).setSource("foo", "bar").get();
+        }
+        client().prepareDelete(index, "0").get();
+        refresh(index);
+
+        CommonStats stats = client().admin().indices().prepareStats(index).get().getIndex(index).getTotal();
+        Response response = getRestClient().performRequest(new Request("GET", "_prometheus/metrics"));
+        String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
+
+        assertEquals(stats.getIndexing().getTotal().getIndexTime().millis() / 1000.0,
+                indexMetric(body, "index_indexing_index_time_seconds", index), 0.0);
+        assertEquals(stats.getIndexing().getTotal().getDeleteTime().millis() / 1000.0,
+                indexMetric(body, "index_indexing_delete_time_seconds", index), 0.0);
+        assertEquals(stats.getIndexing().getTotal().getThrottleTime().millis() / 1000.0,
+                indexMetric(body, "index_indexing_throttle_time_seconds", index), 0.0);
+        assertEquals(stats.getRecoveryStats().throttleTime().millis() / 1000.0,
+                indexMetric(body, "index_recovery_throttle_time_seconds", index), 0.0);
+        assertEquals(stats.getWarmer().totalTimeInMillis() / 1000.0,
+                indexMetric(body, "index_warmer_time_seconds", index), 0.0);
+    }
+
+    private static double indexMetric(String body, String metric, String index) {
+        Matcher m = Pattern.compile("^opensearch_" + metric + "\\{cluster=\"[^\"]*\",index=\"" + index
+                + "\",context=\"total\",\\} (\\S+)$", Pattern.MULTILINE).matcher(body);
+        assertTrue(metric + " not exported", m.find());
+        return Double.parseDouble(m.group(1));
     }
 }
