@@ -208,7 +208,7 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_search_query_current_number", "Number of search queries currently in progress");
         catalog.registerNodeGauge("indices_search_query_time_seconds", "Time spent while search queries");
         catalog.registerNodeGauge("indices_search_scroll_count", "Count of search scrolls");
-        catalog.registerNodeGauge("indices_search_scroll_current_number", "Number of search scrolls currently in progress");
+        catalog.registerNodeGauge("indices_search_scroll_current_number", "Number of open scroll contexts");
         catalog.registerNodeGauge("indices_search_scroll_time_seconds", "Time spent while search scrolls");
         catalog.registerNodeGauge("indices_search_concurrent_query_count", "Count of search queries that use concurrent segment search");
         catalog.registerNodeGauge("indices_search_concurrent_query_current_number", "Number of search queries that use concurrent segment search currently in progress");
@@ -406,7 +406,7 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_search_query_current_number", "Number of search queries currently in progress", "index", "context");
         catalog.registerClusterGauge("index_search_query_time_seconds", "Time spent while search queries", "index", "context");
         catalog.registerClusterGauge("index_search_scroll_count", "Count of search scrolls", "index", "context");
-        catalog.registerClusterGauge("index_search_scroll_current_number", "Number of search scrolls currently in progress", "index", "context");
+        catalog.registerClusterGauge("index_search_scroll_current_number", "Number of open scroll contexts", "index", "context");
         catalog.registerClusterGauge("index_search_scroll_time_seconds", "Time spent while search scrolls", "index", "context");
 
         catalog.registerClusterGauge("index_merges_current_number", "Number of merges currently in progress", "index", "context");
