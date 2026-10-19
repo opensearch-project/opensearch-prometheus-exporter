@@ -130,7 +130,7 @@ dependencies {
 
 restResources {
     restApi {
-        includeCore '_common', 'cat', 'cluster', 'nodes', 'indices', 'index'
+        includeCore '_common', 'cat', 'cluster', 'nodes', 'indices', 'index', 'search'
     }
 }
 

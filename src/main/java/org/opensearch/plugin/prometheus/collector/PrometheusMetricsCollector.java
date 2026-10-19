@@ -207,7 +207,7 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_search_query_count", "Count of search queries");
         catalog.registerNodeGauge("indices_search_query_current_number", "Current rate of search queries");
         catalog.registerNodeGauge("indices_search_query_time_seconds", "Time spent while search queries");
-        catalog.registerNodeGauge("indices_search_query_failed_count", "Count of failed search queries");
+        catalog.registerNodeGauge("indices_search_query_phase_failed_count", "Count of failed shard query phases");
         catalog.registerNodeGauge("indices_search_scroll_count", "Count of search scrolls");
         catalog.registerNodeGauge("indices_search_scroll_current_number", "Current rate of search scrolls");
         catalog.registerNodeGauge("indices_search_scroll_time_seconds", "Time spent while search scrolls");
@@ -306,7 +306,7 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_search_query_current_number", idx.getSearch().getTotal().getQueryCurrent());
             catalog.setNodeGauge(nodeInfo,"indices_search_query_time_seconds",
                     idx.getSearch().getTotal().getQueryTimeInMillis() / 1000.0);
-            catalog.setNodeGauge(nodeInfo,"indices_search_query_failed_count", idx.getSearch().getTotal().getQueryFailedCount());
+            catalog.setNodeGauge(nodeInfo,"indices_search_query_phase_failed_count", idx.getSearch().getTotal().getQueryFailedCount());
             catalog.setNodeGauge(nodeInfo,"indices_search_scroll_count", idx.getSearch().getTotal().getScrollCount());
             catalog.setNodeGauge(nodeInfo,"indices_search_scroll_current_number", idx.getSearch().getTotal().getScrollCurrent());
             catalog.setNodeGauge(nodeInfo,"indices_search_scroll_time_seconds",
@@ -407,7 +407,7 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_search_query_count", "Count of search queries", "index", "context");
         catalog.registerClusterGauge("index_search_query_current_number", "Current rate of search queries", "index", "context");
         catalog.registerClusterGauge("index_search_query_time_seconds", "Time spent while search queries", "index", "context");
-        catalog.registerClusterGauge("index_search_query_failed_count", "Count of failed search queries", "index", "context");
+        catalog.registerClusterGauge("index_search_query_phase_failed_count", "Count of failed shard query phases", "index", "context");
         catalog.registerClusterGauge("index_search_scroll_count", "Count of search scrolls", "index", "context");
         catalog.registerClusterGauge("index_search_scroll_current_number", "Current rate of search scrolls", "index", "context");
         catalog.registerClusterGauge("index_search_scroll_time_seconds", "Time spent while search scrolls", "index", "context");
@@ -527,7 +527,7 @@ public class PrometheusMetricsCollector {
         catalog.setClusterGauge("index_search_query_count", idx.getSearch().getTotal().getQueryCount(), indexName, context);
         catalog.setClusterGauge("index_search_query_current_number", idx.getSearch().getTotal().getQueryCurrent(), indexName, context);
         catalog.setClusterGauge("index_search_query_time_seconds", idx.getSearch().getTotal().getQueryTimeInMillis() / 1000.0, indexName, context);
-        catalog.setClusterGauge("index_search_query_failed_count", idx.getSearch().getTotal().getQueryFailedCount(), indexName, context);
+        catalog.setClusterGauge("index_search_query_phase_failed_count", idx.getSearch().getTotal().getQueryFailedCount(), indexName, context);
         catalog.setClusterGauge("index_search_scroll_count", idx.getSearch().getTotal().getScrollCount(), indexName, context);
         catalog.setClusterGauge("index_search_scroll_current_number", idx.getSearch().getTotal().getScrollCurrent(), indexName, context);
         catalog.setClusterGauge("index_search_scroll_time_seconds", idx.getSearch().getTotal().getScrollTimeInMillis() / 1000.0, indexName, context);
