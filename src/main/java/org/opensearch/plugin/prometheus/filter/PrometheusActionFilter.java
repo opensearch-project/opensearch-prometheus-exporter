@@ -213,6 +213,33 @@ public class PrometheusActionFilter implements ActionFilter {
     }
 
     /**
+     * Returns the accumulated action metrics as a {@link Collector}, so that they can be rendered as part of
+     * another registry. The node identity labels are applied whenever it is collected, exactly as by
+     * {@link #metricFamilySamples(String, String, String)}.
+     *
+     * @param clusterName Name of the OpenSearch cluster
+     * @param nodeName    Name of the local node
+     * @param nodeId      ID of the local node
+     * @return A collector reading this filter's metrics
+     */
+    public Collector collector(String clusterName, String nodeName, String nodeId) {
+        // Describable, because a registry only checks the names of describable collectors against those
+        // already registered; any other collector is registered unchecked.
+        class ActionCollector extends Collector implements Collector.Describable {
+            @Override
+            public List<MetricFamilySamples> collect() {
+                return Collections.list(metricFamilySamples(clusterName, nodeName, nodeId));
+            }
+
+            @Override
+            public List<MetricFamilySamples> describe() {
+                return collect();
+            }
+        }
+        return new ActionCollector();
+    }
+
+    /**
      * The pre-resolved metric children for a single tracked action.
      */
     private static final class ActionMetrics {
