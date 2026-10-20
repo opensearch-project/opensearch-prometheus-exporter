@@ -42,6 +42,7 @@ import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.http.HttpStats;
 import org.opensearch.indices.NodeIndicesStats;
+import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.indices.breaker.AllCircuitBreakerStats;
 import org.opensearch.core.indices.breaker.CircuitBreakerStats;
 import org.opensearch.ingest.IngestStats;
@@ -1010,8 +1011,22 @@ public class PrometheusMetricsCollector {
      * @see PrometheusMetricsCatalog#toTextFormat()
      * @return A text representation of the catalog
      * @throws IOException If creating the text representation goes wrong
+     * @deprecated Builds the whole document as a String, which on large clusters means several humongous
+     *             allocations per scrape. Use {@link #getTextContentBytes()} instead.
      */
+    @Deprecated
     public String getTextContent() throws IOException {
         return this.catalog.toTextFormat();
+    }
+
+    /**
+     * Returns all collected metrics as UTF-8 bytes in Prometheus exposition format.
+     *
+     * @see PrometheusMetricsCatalog#toTextFormatBytes()
+     * @return A text representation of the catalog
+     * @throws IOException If creating the text representation goes wrong
+     */
+    public BytesReference getTextContentBytes() throws IOException {
+        return this.catalog.toTextFormatBytes();
     }
 }

@@ -37,11 +37,16 @@ import io.prometheus.client.Summary;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.io.stream.BytesStreamOutput;
+import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.plugin.prometheus.rest.RestPrometheusMetricsAction;
 
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -260,14 +265,42 @@ public class PrometheusMetricsCatalog {
     }
 
     /**
+     * Registers metrics kept outside the catalog, so that they are rendered in the same document as the
+     * catalog's own.
+     * @param collector The collector to register
+     * @throws IllegalArgumentException If the collector is {@link Collector.Describable} and provides a
+     *                                  metric name that is already registered
+     */
+    public void registerCollector(Collector collector) {
+        registry.register(collector);
+    }
+
+    /**
      * Returns all the metrics from the catalog formatted in UTF-8 plain/text.
      * More specifically as {@link TextFormat#CONTENT_TYPE_004}.
      * @return Text representation of the metric from the catalog
      * @throws IOException If creating the text representation goes wrong
+     * @deprecated Builds the whole document as a String, which on large clusters means several humongous
+     *             allocations per scrape. Use {@link #toTextFormatBytes()} instead.
      */
+    @Deprecated
     public String toTextFormat() throws IOException {
         Writer writer = new StringWriter();
         TextFormat.write004(writer, registry.metricFamilySamples());
         return writer.toString();
+    }
+
+    /**
+     * Returns the same document as {@link #toTextFormat()}, as UTF-8 bytes held in 16 KB pages rather than
+     * one contiguous String, so that a large document does not turn into G1 humongous allocations.
+     * @return Text representation of the metric from the catalog
+     * @throws IOException If creating the text representation goes wrong
+     */
+    public BytesReference toTextFormatBytes() throws IOException {
+        BytesStreamOutput out = new BytesStreamOutput();
+        Writer writer = new BufferedWriter(new OutputStreamWriter(out, StandardCharsets.UTF_8));
+        TextFormat.write004(writer, registry.metricFamilySamples());
+        writer.flush();
+        return out.bytes();
     }
 }
