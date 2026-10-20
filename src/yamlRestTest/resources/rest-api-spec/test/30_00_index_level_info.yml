@@ -15,7 +15,7 @@
       index:
         index:  twitter
         id:     1
-        body:   { foo: bar }
+        body:   { foo: bar, nested: { baz: qux } }
 
   - do:
       indices.refresh: { allow_no_indices: true }
@@ -58,6 +58,16 @@
         opensearch_index_replicas_number\{
             cluster="yamlRestTest",index="twitter"
         ,\} \s+ \d+\.\d+ \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_indices_mappings_stats_fields (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_indices_mappings_stats_fields \s gauge \n
+        opensearch_indices_mappings_stats_fields\{
+            cluster="yamlRestTest",index="twitter"
+        ,\} \s+ 5\.0 \n?
         .*/
 
 ---
