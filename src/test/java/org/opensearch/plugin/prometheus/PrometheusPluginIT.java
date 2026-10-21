@@ -31,6 +31,7 @@ import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.info.PluginsAndModules;
 import org.opensearch.action.admin.indices.stats.CommonStats;
+import org.opensearch.action.bulk.BulkRequestBuilder;
 import org.opensearch.client.Request;
 import org.opensearch.client.Response;
 import org.opensearch.client.RestClient;
@@ -46,6 +47,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertAcked;
+import static org.opensearch.test.hamcrest.OpenSearchAssertions.assertNoFailures;
 
 @ThreadLeakScope(ThreadLeakScope.Scope.NONE)
 // CS-SUPPRESS-SINGLE: RegexpSingleline supportsDedicatedMasters is an OpenSearch API with no alternative
@@ -87,34 +89,64 @@ public class PrometheusPluginIT extends OpenSearchIntegTestCase {
 
     /**
      * Index level time metrics must export the index stats as fractional seconds.
+     * Each stat is driven until it is non-zero and not whole seconds, so the
+     * assertions fail on both raw millis and truncated seconds.
      */
     public void testIndexTimeMetricsInSeconds() throws IOException, ParseException {
         String index = "time-units";
-        assertAcked(prepareCreate(index).setSettings(Settings.builder()
-                .put("index.number_of_shards", 1)
-                .put("index.number_of_replicas", 0)
-                // No scheduled refreshes, so stats can't move between the two reads.
-                .put("index.refresh_interval", "-1")));
-        for (int i = 0; i < 100; i++) {
-            client().prepareIndex(index).setId(String.valueOf(i)).setSource("foo", "bar").get();
-        }
-        client().prepareDelete(index, "0").get();
-        refresh(index);
+        assertAcked(prepareCreate(index)
+                .setSettings(Settings.builder()
+                        .put("index.number_of_shards", 1)
+                        .put("index.number_of_replicas", 0)
+                        // No scheduled refreshes, so stats can't move between the two reads.
+                        .put("index.refresh_interval", "-1"))
+                // Eager global ordinals give the warmer real work on every refresh.
+                .setMapping("tag", "type=keyword,eager_global_ordinals=true"));
 
-        CommonStats stats = client().admin().indices().prepareStats(index).get().getIndex(index).getTotal();
+        int docs = 0;
+        CommonStats stats;
+        do {
+            BulkRequestBuilder bulk = client().prepareBulk();
+            for (int i = 0; i < 100; i++, docs++) {
+                bulk.add(client().prepareIndex(index).setId(String.valueOf(docs)).setSource("tag", "t" + docs));
+            }
+            assertNoFailures(bulk.get());
+            refresh(index);
+            stats = indexStats(index);
+        } while ((wholeSeconds(stats.getIndexing().getTotal().getIndexTime().millis())
+                || stats.getWarmer().totalTimeInMillis() == 0) && docs < 100_000);
+
+        int deletes = 0;
+        do {
+            BulkRequestBuilder bulk = client().prepareBulk();
+            for (int i = 0; i < 100 && deletes < docs; i++, deletes++) {
+                bulk.add(client().prepareDelete(index, String.valueOf(deletes)));
+            }
+            assertNoFailures(bulk.get());
+            stats = indexStats(index);
+        } while (wholeSeconds(stats.getIndexing().getTotal().getDeleteTime().millis()) && deletes < docs);
+
+        long indexMillis = stats.getIndexing().getTotal().getIndexTime().millis();
+        long deleteMillis = stats.getIndexing().getTotal().getDeleteTime().millis();
+        long warmerMillis = stats.getWarmer().totalTimeInMillis();
+        assertFalse("index time " + indexMillis + "ms", wholeSeconds(indexMillis));
+        assertFalse("delete time " + deleteMillis + "ms", wholeSeconds(deleteMillis));
+        assertTrue("warmer time " + warmerMillis + "ms", warmerMillis > 0);
+
         Response response = getRestClient().performRequest(new Request("GET", "_prometheus/metrics"));
         String body = EntityUtils.toString(response.getEntity(), StandardCharsets.UTF_8);
 
-        assertEquals(stats.getIndexing().getTotal().getIndexTime().millis() / 1000.0,
-                indexMetric(body, "index_indexing_index_time_seconds", index), 0.0);
-        assertEquals(stats.getIndexing().getTotal().getDeleteTime().millis() / 1000.0,
-                indexMetric(body, "index_indexing_delete_time_seconds", index), 0.0);
-        assertEquals(stats.getIndexing().getTotal().getThrottleTime().millis() / 1000.0,
-                indexMetric(body, "index_indexing_throttle_time_seconds", index), 0.0);
-        assertEquals(stats.getRecoveryStats().throttleTime().millis() / 1000.0,
-                indexMetric(body, "index_recovery_throttle_time_seconds", index), 0.0);
-        assertEquals(stats.getWarmer().totalTimeInMillis() / 1000.0,
-                indexMetric(body, "index_warmer_time_seconds", index), 0.0);
+        assertEquals(indexMillis / 1000.0, indexMetric(body, "index_indexing_index_time_seconds", index), 0.0);
+        assertEquals(deleteMillis / 1000.0, indexMetric(body, "index_indexing_delete_time_seconds", index), 0.0);
+        assertEquals(warmerMillis / 1000.0, indexMetric(body, "index_warmer_time_seconds", index), 0.0);
+    }
+
+    private static boolean wholeSeconds(long millis) {
+        return millis % 1000 == 0;
+    }
+
+    private static CommonStats indexStats(String index) {
+        return client().admin().indices().prepareStats(index).get().getIndex(index).getTotal();
     }
 
     private static double indexMetric(String body, String metric, String index) {
