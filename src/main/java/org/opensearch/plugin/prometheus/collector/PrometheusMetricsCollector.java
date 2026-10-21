@@ -182,10 +182,10 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_store_size_bytes", "Store size of the indices in bytes");
 
         catalog.registerNodeGauge("indices_indexing_delete_count", "Count of documents deleted");
-        catalog.registerNodeGauge("indices_indexing_delete_current_number", "Current rate of documents deleted");
+        catalog.registerNodeGauge("indices_indexing_delete_current_number", "Number of delete operations currently in progress");
         catalog.registerNodeGauge("indices_indexing_delete_time_seconds", "Time spent while deleting documents");
         catalog.registerNodeGauge("indices_indexing_index_count", "Count of documents indexed");
-        catalog.registerNodeGauge("indices_indexing_index_current_number", "Current rate of documents indexed");
+        catalog.registerNodeGauge("indices_indexing_index_current_number", "Number of index operations currently in progress");
         catalog.registerNodeGauge("indices_indexing_index_failed_count", "Count of failed to index documents");
         catalog.registerNodeGauge("indices_indexing_index_time_seconds", "Time spent while indexing documents");
         catalog.registerNodeGauge("indices_indexing_noop_update_count", "Count of noop document updates");
@@ -198,26 +198,27 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_get_exists_time_seconds", "Time spent while existing documents get command");
         catalog.registerNodeGauge("indices_get_missing_count", "Count of missing documents when get command");
         catalog.registerNodeGauge("indices_get_missing_time_seconds", "Time spent while missing documents get command");
-        catalog.registerNodeGauge("indices_get_current_number", "Current rate of get commands");
+        catalog.registerNodeGauge("indices_get_current_number", "Number of get operations currently in progress");
 
         catalog.registerNodeGauge("indices_search_open_contexts_number", "Number of search open contexts");
         catalog.registerNodeGauge("indices_search_fetch_count", "Count of search fetches");
-        catalog.registerNodeGauge("indices_search_fetch_current_number", "Current rate of search fetches");
+        catalog.registerNodeGauge("indices_search_fetch_current_number", "Number of search fetches currently in progress");
         catalog.registerNodeGauge("indices_search_fetch_time_seconds", "Time spent while search fetches");
         catalog.registerNodeGauge("indices_search_query_count", "Count of search queries");
-        catalog.registerNodeGauge("indices_search_query_current_number", "Current rate of search queries");
+        catalog.registerNodeGauge("indices_search_query_current_number", "Number of search queries currently in progress");
         catalog.registerNodeGauge("indices_search_query_time_seconds", "Time spent while search queries");
+        catalog.registerNodeGauge("indices_search_query_phase_failed_count", "Count of failed shard query phases");
         catalog.registerNodeGauge("indices_search_scroll_count", "Count of search scrolls");
-        catalog.registerNodeGauge("indices_search_scroll_current_number", "Current rate of search scrolls");
+        catalog.registerNodeGauge("indices_search_scroll_current_number", "Number of open scroll contexts");
         catalog.registerNodeGauge("indices_search_scroll_time_seconds", "Time spent while search scrolls");
         catalog.registerNodeGauge("indices_search_concurrent_query_count", "Count of search queries that use concurrent segment search");
-        catalog.registerNodeGauge("indices_search_concurrent_query_current_number", "Current rate of search queries that use concurrent segment search");
+        catalog.registerNodeGauge("indices_search_concurrent_query_current_number", "Number of search queries that use concurrent segment search currently in progress");
         catalog.registerNodeGauge("indices_search_concurrent_query_time_seconds", "Time spent on search queries that use concurrent segment search");
         catalog.registerNodeGauge("indices_search_concurrent_avg_slice_count", "Average slice count per concurrent segment search request");
 
-        catalog.registerNodeGauge("indices_merges_current_number", "Current rate of merges");
-        catalog.registerNodeGauge("indices_merges_current_docs_number", "Current rate of documents merged");
-        catalog.registerNodeGauge("indices_merges_current_size_bytes", "Current rate of bytes merged");
+        catalog.registerNodeGauge("indices_merges_current_number", "Number of merges currently in progress");
+        catalog.registerNodeGauge("indices_merges_current_docs_number", "Number of documents in merges currently in progress");
+        catalog.registerNodeGauge("indices_merges_current_size_bytes", "Size in bytes of merges currently in progress");
         catalog.registerNodeGauge("indices_merges_total_number", "Count of merges");
         catalog.registerNodeGauge("indices_merges_total_time_seconds", "Time spent while merging");
         catalog.registerNodeGauge("indices_merges_total_docs_count", "Count of documents merged");
@@ -243,7 +244,7 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_querycache_miss_number", "Count of misses in query cache");
         catalog.registerNodeGauge("indices_querycache_total_number", "Count of usages of query cache");
 
-        catalog.registerNodeGauge("indices_fielddata_memory_size_bytes", "Memory usage of field date cache");
+        catalog.registerNodeGauge("indices_fielddata_memory_size_bytes", "Memory usage of field data cache");
         catalog.registerNodeGauge("indices_fielddata_evictions_count", "Count of evictions in field data cache");
 
         catalog.registerNodeGauge("indices_percolate_count", "Count of percolates");
@@ -255,9 +256,9 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_completion_size_bytes", "Size of completion suggest statistics");
 
         catalog.registerNodeGauge("indices_segments_number", "Current number of segments");
-        catalog.registerNodeGauge("indices_segments_memory_bytes", "Memory used by segments", "type");
+        catalog.registerNodeGauge("indices_segments_memory_bytes", "Memory used by segment bitsets and the index writer and version map", "type");
 
-        catalog.registerNodeGauge("indices_suggest_current_number", "Current rate of suggests");
+        catalog.registerNodeGauge("indices_suggest_current_number", "Number of suggests currently in progress");
         catalog.registerNodeGauge("indices_suggest_count", "Count of suggests");
         catalog.registerNodeGauge("indices_suggest_time_seconds", "Time spent while making suggests");
 
@@ -307,6 +308,7 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_search_query_current_number", idx.getSearch().getTotal().getQueryCurrent());
             catalog.setNodeGauge(nodeInfo,"indices_search_query_time_seconds",
                     idx.getSearch().getTotal().getQueryTimeInMillis() / 1000.0);
+            catalog.setNodeGauge(nodeInfo,"indices_search_query_phase_failed_count", idx.getSearch().getTotal().getQueryFailedCount());
             catalog.setNodeGauge(nodeInfo,"indices_search_scroll_count", idx.getSearch().getTotal().getScrollCount());
             catalog.setNodeGauge(nodeInfo,"indices_search_scroll_current_number", idx.getSearch().getTotal().getScrollCurrent());
             catalog.setNodeGauge(nodeInfo,"indices_search_scroll_time_seconds",
@@ -384,10 +386,10 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_store_size_bytes", "Store size of the indices in bytes", "index", "context");
 
         catalog.registerClusterGauge("index_indexing_delete_count", "Count of documents deleted", "index", "context");
-        catalog.registerClusterGauge("index_indexing_delete_current_number", "Current rate of documents deleted", "index", "context");
+        catalog.registerClusterGauge("index_indexing_delete_current_number", "Number of delete operations currently in progress", "index", "context");
         catalog.registerClusterGauge("index_indexing_delete_time_seconds", "Time spent while deleting documents", "index", "context");
         catalog.registerClusterGauge("index_indexing_index_count", "Count of documents indexed", "index", "context");
-        catalog.registerClusterGauge("index_indexing_index_current_number", "Current rate of documents indexed", "index", "context");
+        catalog.registerClusterGauge("index_indexing_index_current_number", "Number of index operations currently in progress", "index", "context");
         catalog.registerClusterGauge("index_indexing_index_failed_count", "Count of failed to index documents", "index", "context");
         catalog.registerClusterGauge("index_indexing_index_time_seconds", "Time spent while indexing documents", "index", "context");
         catalog.registerClusterGauge("index_indexing_noop_update_count", "Count of noop document updates", "index", "context");
@@ -400,22 +402,23 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_get_exists_time_seconds", "Time spent while existing documents get command", "index", "context");
         catalog.registerClusterGauge("index_get_missing_count", "Count of missing documents when get command", "index", "context");
         catalog.registerClusterGauge("index_get_missing_time_seconds", "Time spent while missing documents get command", "index", "context");
-        catalog.registerClusterGauge("index_get_current_number", "Current rate of get commands", "index", "context");
+        catalog.registerClusterGauge("index_get_current_number", "Number of get operations currently in progress", "index", "context");
 
         catalog.registerClusterGauge("index_search_open_contexts_number", "Number of search open contexts", "index", "context");
         catalog.registerClusterGauge("index_search_fetch_count", "Count of search fetches", "index", "context");
-        catalog.registerClusterGauge("index_search_fetch_current_number", "Current rate of search fetches", "index", "context");
+        catalog.registerClusterGauge("index_search_fetch_current_number", "Number of search fetches currently in progress", "index", "context");
         catalog.registerClusterGauge("index_search_fetch_time_seconds", "Time spent while search fetches", "index", "context");
         catalog.registerClusterGauge("index_search_query_count", "Count of search queries", "index", "context");
-        catalog.registerClusterGauge("index_search_query_current_number", "Current rate of search queries", "index", "context");
+        catalog.registerClusterGauge("index_search_query_current_number", "Number of search queries currently in progress", "index", "context");
         catalog.registerClusterGauge("index_search_query_time_seconds", "Time spent while search queries", "index", "context");
+        catalog.registerClusterGauge("index_search_query_phase_failed_count", "Count of failed shard query phases", "index", "context");
         catalog.registerClusterGauge("index_search_scroll_count", "Count of search scrolls", "index", "context");
-        catalog.registerClusterGauge("index_search_scroll_current_number", "Current rate of search scrolls", "index", "context");
+        catalog.registerClusterGauge("index_search_scroll_current_number", "Number of open scroll contexts", "index", "context");
         catalog.registerClusterGauge("index_search_scroll_time_seconds", "Time spent while search scrolls", "index", "context");
 
-        catalog.registerClusterGauge("index_merges_current_number", "Current rate of merges", "index", "context");
-        catalog.registerClusterGauge("index_merges_current_docs_number", "Current rate of documents merged", "index", "context");
-        catalog.registerClusterGauge("index_merges_current_size_bytes", "Current rate of bytes merged", "index", "context");
+        catalog.registerClusterGauge("index_merges_current_number", "Number of merges currently in progress", "index", "context");
+        catalog.registerClusterGauge("index_merges_current_docs_number", "Number of documents in merges currently in progress", "index", "context");
+        catalog.registerClusterGauge("index_merges_current_size_bytes", "Size in bytes of merges currently in progress", "index", "context");
         catalog.registerClusterGauge("index_merges_total_number", "Count of merges", "index", "context");
         catalog.registerClusterGauge("index_merges_total_time_seconds", "Time spent while merging", "index", "context");
         catalog.registerClusterGauge("index_merges_total_docs_count", "Count of documents merged", "index", "context");
@@ -441,7 +444,7 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_querycache_miss_number", "Count of misses in query cache", "index", "context");
         catalog.registerClusterGauge("index_querycache_total_number", "Count of usages of query cache", "index", "context");
 
-        catalog.registerClusterGauge("index_fielddata_memory_size_bytes", "Memory usage of field date cache", "index", "context");
+        catalog.registerClusterGauge("index_fielddata_memory_size_bytes", "Memory usage of field data cache", "index", "context");
         catalog.registerClusterGauge("index_fielddata_evictions_count", "Count of evictions in field data cache", "index", "context");
 
         // Percolator cache was removed in ES 5.x
@@ -450,9 +453,9 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_completion_size_bytes", "Size of completion suggest statistics", "index", "context");
 
         catalog.registerClusterGauge("index_segments_number", "Current number of segments", "index", "context");
-        catalog.registerClusterGauge("index_segments_memory_bytes", "Memory used by segments", "type", "index", "context");
+        catalog.registerClusterGauge("index_segments_memory_bytes", "Memory used by segment bitsets and the index writer and version map", "type", "index", "context");
 
-        catalog.registerClusterGauge("index_suggest_current_number", "Current rate of suggests", "index", "context");
+        catalog.registerClusterGauge("index_suggest_current_number", "Number of suggests currently in progress", "index", "context");
         catalog.registerClusterGauge("index_suggest_count", "Count of suggests", "index", "context");
         catalog.registerClusterGauge("index_suggest_time_seconds", "Time spent while making suggests", "index", "context");
 
@@ -530,6 +533,7 @@ public class PrometheusMetricsCollector {
         catalog.setClusterGauge("index_search_query_count", idx.getSearch().getTotal().getQueryCount(), indexName, context);
         catalog.setClusterGauge("index_search_query_current_number", idx.getSearch().getTotal().getQueryCurrent(), indexName, context);
         catalog.setClusterGauge("index_search_query_time_seconds", idx.getSearch().getTotal().getQueryTimeInMillis() / 1000.0, indexName, context);
+        catalog.setClusterGauge("index_search_query_phase_failed_count", idx.getSearch().getTotal().getQueryFailedCount(), indexName, context);
         catalog.setClusterGauge("index_search_scroll_count", idx.getSearch().getTotal().getScrollCount(), indexName, context);
         catalog.setClusterGauge("index_search_scroll_current_number", idx.getSearch().getTotal().getScrollCurrent(), indexName, context);
         catalog.setClusterGauge("index_search_scroll_time_seconds", idx.getSearch().getTotal().getScrollTimeInMillis() / 1000.0, indexName, context);
