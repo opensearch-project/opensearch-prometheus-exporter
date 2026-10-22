@@ -1,144 +1,128 @@
 # Release Process
 
-Right now the release process of the plugin is a manual process and some steps require admin permissions. In the future the process should be automated.
+Plugin version `X.Y.Z.N` works with OpenSearch `X.Y.Z` only. Most releases are `X.Y.Z.0` and follow a new OpenSearch release `X.Y.Z`. A plugin patch release (`N > 0`) ships plugin fixes for an OpenSearch version that already has a plugin release, without upgrading OpenSearch. Releases of the current major version are made from `main`; releases of older lines are made from maintenance branches such as `v2.19` or `v3.6`.
 
-## The Goal of the Release Process
+The result of a release is a git tag `X.Y.Z.N` on a single commit, and a GitHub release with the plugin ZIP archive (`prometheus-exporter-X.Y.Z.N.zip`) built from that commit.
 
-The main goal of the release process is a new commit in either `main` or other relevant branch with a unique git tag assigned to it which can be used to reliably used to build identical final artifact(s) (mainly the ZIP archive in this case).
+Maintainers cannot create tags: an organization-level ruleset blocks tag creation for the `maintain` role, both by `git push` and by publishing a release. Maintainers stage a **draft release**, and an OpenSearch admin publishes it (which creates the tag) on request.
+
+AI coding agents can drive this process with the [`release` skill](.claude/skills/release/SKILL.md), see [Using the `release` skill](#using-the-release-skill).
 
 ## Release Process Steps
 
-1. [\[Optional\] Upgrade OpenSearch to a new version](RELEASE_PROCESS.md#1-optional-upgrade-opensearch-to-a-new-version)
-2. [Open a new ticket with release checklist](RELEASE_PROCESS.md#2-open-a-new-ticket-with-release-checklist)
-3. [Create and push the release commit](RELEASE_PROCESS.md#3-create-and-push-the-release-commit)
-4. [\[Optional\] Update Compatibility Matrix in the main branch](RELEASE_PROCESS.md#4-optional-update-compatibility-matrix-in-the-main-branch)
-5. [Prepare new release draft on GitHub](RELEASE_PROCESS.md#5-prepare-new-release-draft-on-github)
-6. [Build release artifacts and upload them](RELEASE_PROCESS.md#6-build-release-artifacts-and-upload-them)
-7. [Verify that the artifacts work with OpenSearch](RELEASE_PROCESS.md#7-verify-that-the-artifacts-work-with-opensearch)
-8. [Write release notes and publish the release on GitHub](RELEASE_PROCESS.md#8-write-release-notes-and-publish-the-release-on-github) 
-9. [\[Optional\] OpenSearch forum announcement](RELEASE_PROCESS.md#9-optional-opensearch-forum-announcement)
+1. [Open a tracking issue](#1-open-a-tracking-issue)
+2. [Prepare the release branch](#2-prepare-the-release-branch)
+3. [Build, verify and stage a draft release](#3-build-verify-and-stage-a-draft-release)
+4. [Request the release tag](#4-request-the-release-tag)
+5. [Wrap up](#5-wrap-up)
 
 ## Detailed instructions
 
-### 1. \[Optional\] Upgrade OpenSearch to a new version
+### 1. Open a tracking issue
 
-If the release includes upgrade to a new version of OpenSearch it is recommended to do the upgrade as a separate PR. Just make the PR to only upgrade the OpenSearch version and do not mix it with any other release related changes (such as Compatibility Matrix updates or any other updates).
+Open an issue titled `Release X.Y.Z.N` with a checklist, and keep it updated during the release. Community members often open it as soon as OpenSearch `X.Y.Z` is out; if one already exists, use it. For a plugin patch release, explain in the issue why it is needed.
 
-This is only to make sure that if the upgrade will need to be reverted then we will not have to delete any git tags or otherwise manipulate public git repo history.
+- Example: [#588](https://github.com/opensearch-project/opensearch-prometheus-exporter/issues/588) (template: [tracking-issue.md](.claude/skills/release/templates/tracking-issue.md))
 
-- PR example: https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/62
+### 2. Prepare the release branch
 
-### 2. Open a new ticket with release checklist
+A release is always built against the **final** OpenSearch version from Maven Central, never against a `-SNAPSHOT`. Between releases, `main` (and `v3.6`) build against `X.Y.Z-SNAPSHOT`, but the release commit must have `opensearch_version = X.Y.Z`, so that the tag reproduces the released ZIP. OpenSearch publishes its Maven artifacts some days after its GitHub release, so check first that [`build-tools` `X.Y.Z`](https://repo.maven.apache.org/maven2/org/opensearch/gradle/build-tools/) is on Maven Central. Until it is, the release has to wait.
 
-It is helpful to track individual release steps. A good practice is opening a new ticket with the checklist and update it during the process to make sure nothing is forgotten and that steps are happening in correct order.
+First check the target branch: the OpenSearch upgrade is often merged well before the release, sometimes because the community needed a build against the new OpenSearch. If `gradle.properties` already has the new `version` and the final `opensearch_version`, no upgrade PR is needed; only the release docs (Compatibility Matrix row, install command) may still be missing, and those go in a separate PR (example: [#576](https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/576)). If the upgrade was merged as `X.Y.Z-SNAPSHOT`, open one PR titled `Prepare release X.Y.Z.N` that switches it to `X.Y.Z` and adds the release docs. Also check for an open upgrade PR, and help finish it instead of opening a second one.
 
-- Ticket example: https://github.com/opensearch-project/opensearch-prometheus-exporter/issues/61
+Otherwise, open a PR titled `Bump to OpenSearch X.Y.Z` against the target branch. It usually changes:
 
-### 3. Create and push the release commit
+- `gradle.properties`: `version`, `opensearch_version` (`X.Y.Z` on `main` and `v3.6`; empty on `v2.19`, where the build derives it), and `BWCversion` / `BWCPluginVersion`, which point to the previous release
+- `PluginBackwardsCompatibilityIT`: the `BWCVersion` and `NewVersion` constants
+- the Compatibility Matrix: [COMPATIBILITY.md](COMPATIBILITY.md) (the README section on `v2.19`)
+- `README.md`: the install command URL
 
-Now we will create the commit that will be assigned the new release git tag. This commits must include everything that is needed to recreate the release build artifact(s) at later time (including documentation updates if possible).
+A new OpenSearch version sometimes needs build fixes (dependency conflicts, stricter precommit checks). Those go into the same PR.
 
-In most cases the commit will include only updates to the README.md file. Specifically update to Compatibility Matrix and update to plugin install command.
+For a release from a maintenance branch, also add the Compatibility Matrix row to `COMPATIBILITY.md` on `main`.
 
-_When updating the Compatibility Matrix information then remember that the release date is the date of the plugin release not the release date of OpenSearch._
+For a plugin patch release (`X.Y.Z.N`, `N > 0`), the PR is titled `Prepare release X.Y.Z.N`. It only changes `version`, adds a Compatibility Matrix row (e.g. `3.9.0 | 3.9.0.1`), and updates the install command if this is the newest release on the branch. The BWC settings stay unchanged, and `opensearch_version` too, unless the branch is on `X.Y.Z-SNAPSHOT`, which the PR switches to `X.Y.Z`. The release must come from a branch that builds against OpenSearch `X.Y.Z`. If `main` has already moved on, that means a `vX.Y` maintenance branch, which is created on request by the admins (example: [.github#505](https://github.com/opensearch-project/.github/issues/505)).
 
-```shell
-# Do in our local repo clone
-$ git checkout -b release_1.3.3.0
+- Examples: [#614](https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/614) (`main`), [#563](https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/563) (`v2.19`)
 
-# Update the Compatibility Matrix and installation command example
-$ vi README.md
-$ git add README.md
+Commits must be signed off (see the [Contribution policy](CONTRIBUTING.md#developer-certificate-of-origin)).
 
-# Check which files will be part of the commit
-# Make sure you know what is going into this commit 
-$ git status
-$ git commit -s -m "Release 1.3.3.0"
+### 3. Build, verify and stage a draft release
 
-# Push the commit into your clone and open new PR in upstream repo
-$ git push <our_clone> release_1.3.3.0 
-```
-Notice that the commit must be `signed` (it is requirement of our [Contribution policy](CONTRIBUTING.md#developer-certificate-of-origin)).
+Pick the commit to release; usually it is the head of the target branch after the bump PR is merged. Its `gradle.properties` must not contain `-SNAPSHOT`. Use this same commit for every step below.
 
-When opening the PR pay attention to target branch. If you prepare release for older version of the plugin the chance is that it will not go against the `main` branch but against different branch (such as `v1.3` or similar).
-
-- Example of commit: https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/63
-
-If this commit passes CI tests and is merged then **the repo admin will create a new release tag** for it and push that tag into repo (`upstream` is the repo under the Aiven GitHub org).
+Build from a clean checkout of that commit, using the JDK version from `.github/workflows/CI.yml` (`jobs.build.strategy.matrix.java`):
 
 ```shell
-# Preparation: recommended steps to pull all updates from upstream including tags
-$ git checkout <branch>
-$ git pull upstream <branch>
-$ git fetch upstream --tags
-
-# Create the release tag
-# If the new release is 1.3.3.0
-$ git tag -s -a 1.3.3.0 -m "Release 1.3.3.0" 
-
-# Verify the tag before pushing
-$ git tag -v 1.3.3.0
-
-# Finally push the tag to upstream
-$ git push upstream 1.3.3.0
+$ git worktree add ../release-X.Y.Z.N <sha>
+$ (cd ../release-X.Y.Z.N && ./gradlew clean build)
+$ shasum -a 256 ../release-X.Y.Z.N/build/distributions/prometheus-exporter-X.Y.Z.N.zip
 ```
 
-### 4. \[Optional\] Update Compatibility Matrix in the main branch
+Note the checksum: the tag request and the final check after publishing use it.
 
-When doing releases of older versions of the plugin it can happen that the Compatibility Matrix update do not go into the `main` branch. In this case it is useful to bring this update to the `main` branch as well.
-
-### 5. Prepare new release draft on GitHub
-
-Prepare new Release Draft based on the new release tag.
-
-- Tip: Get some inspiration from our [past releases](https://github.com/opensearch-project/opensearch-prometheus-exporter/releases).
-
-### 6. Build release artifacts and upload them
-
-To build the plugin from sources you need JDK of specific version. To learn which version is required check the GitHub CI definition file, it will always tell you the correct version.
+Smoke-test the ZIP: install it into the [minimal OpenSearch distribution](https://opensearch.org/downloads.html) `X.Y.Z`, start it, and check `GET /_prometheus/metrics`. [smoke-test.sh](.claude/skills/release/scripts/smoke-test.sh) does all of this. Run it from the `main` checkout, because maintenance branches don't have the script:
 
 ```shell
-$ cat .github/workflows/CI.yml
+$ .claude/skills/release/scripts/smoke-test.sh X.Y.Z.N ../release-X.Y.Z.N/build/distributions/prometheus-exporter-X.Y.Z.N.zip
 ```
 
-If you have [yq](https://mikefarah.gitbook.io/yq/) processor installed you can do:
-```shell
-$ cat .github/workflows/CI.yml | yq .jobs.build.strategy.matrix.java
-```
+When the draft release (below) is created, remove the worktree with `git worktree remove ../release-X.Y.Z.N`.
 
-Build the artifacts:
+Write the release notes, with `Features`, `Bug Fixes` and `Maintenance Upgrades` sections and a `Full Changelog` link; see the [past releases](https://github.com/opensearch-project/opensearch-prometheus-exporter/releases) and [release-notes.md](.claude/skills/release/templates/release-notes.md). Then create the draft release (a draft does not create the tag):
 
 ```shell
-$ ./gradlew clean build
-```
-You will find final artifact (the ZIP archive) in the following location:
-
-```shell
-$ file -b ./build/distributions/prometheus-exporter-1.3.3.0.zip
-Zip archive data, at least v1.0 to extract, compression method=deflate
+$ gh release create X.Y.Z.N --draft --target <full-sha> --title "Release X.Y.Z.N" \
+    --notes-file notes.md build/distributions/prometheus-exporter-X.Y.Z.N.zip
 ```
 
-Upload this file to the Release Draft.
+For a release of an older line (a maintenance branch, or a patch release of an older OpenSearch version), add `--latest=false` so it does not replace the newest release as "Latest".
 
-### 7. Verify that the artifacts work with OpenSearch
+### 4. Request the release tag
 
-The goal in this step is to verify that freshly downloaded plugin release artifact can be installed into OpenSearch and that OpenSearch can run and use it (kind of "smoke test").
+Open a `[GitHub Request] Create release tag X.Y.Z.N for opensearch-prometheus-exporter` issue in [opensearch-project/.github](https://github.com/opensearch-project/.github/issues/new/choose). Ask the admins to publish the draft release, and give the target commit, the ZIP checksum and a link to the tracking issue.
 
-I usually download appropriate version of the [minimal](https://opensearch.org/downloads.html#minimal) OpenSearch distribution and then I download the released artifact from the GitHub site. It is possible to download it from the Release Draft as well but the URL is a bit different. Then I use the `opensearch-plugin install` CLI to install the plugin from the Downloads folder into OpenSearch.
+- Examples: [.github#627](https://github.com/opensearch-project/.github/issues/627), [.github#670](https://github.com/opensearch-project/.github/issues/670) (template: [tag-request.md](.claude/skills/release/templates/tag-request.md))
 
-```shell
-$ <opensearch_home>/bin/opensearch-plugin install file:///Users/${whoami}/Downloads/prometheus-exporter-1.3.3.0.zip
+### 5. Wrap up
+
+After the release is published:
+
+- Download the published ZIP and check that its checksum matches the one you built.
+- Fix the release date in the Compatibility Matrix if it differs from the actual publish date (example: [#616](https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/616)). The date is the plugin release date, not the OpenSearch release date.
+- Announce the release on the [OpenSearch forum](https://forum.opensearch.org), in the `OpenSearch` category with the `releases` tag (example: [3.9.0.0](https://forum.opensearch.org/t/prometheus-exporter-plugin-3-9-0-0-released/28327)).
+- Tick the checklist in the tracking issue and close it.
+
+## Using the `release` skill
+
+The [`release` skill](.claude/skills/release/SKILL.md) lets [Claude Code](https://claude.com/claude-code) drive the steps above. In a Claude Code session in this repository, run:
+
+```
+/release 2.19.7.0
 ```
 
-### 8. Write release notes and publish the release on GitHub
+Asking in plain words ("let's release 3.10.0.0", "continue the 2.19.7.0 release") works as well.
 
-If the testing went fine, you write release notes and publish the release. 
+Run it from a `main` checkout, also for maintenance releases: the skill exists only on `main`. It picks the target branch from the version (e.g. `2.19.7.0` → `v2.19`) and does all branch work in separate git worktrees, so your checkout stays on `main` and your uncommitted changes stay where they are.
 
-### 9. \[Optional\] OpenSearch forum announcement
+**Start with a dry run.** Before the real release, ask for a dry run, for example *"do a dry run of the release skill for 2.19.7.0"*. The skill then goes through every phase without changing anything on GitHub: it runs the checks, applies the version changes and builds in a temporary worktree, runs the smoke test, and drafts the PR descriptions, release notes and tag request. It ends with a report of what each phase would do and anything that blocks the release. Typical problems it catches early: OpenSearch artifacts missing from Maven Central, build failures with the new OpenSearch version, wrong dates in the compatibility matrix, and nothing new to release. When the dry run looks fine, run the release for real.
 
-Let the community know. Create a new announcement in `OpenSearch` category and do not forget to add `releases` tag.
+**How it works.** The skill first finds out where the release is: tracking issue, OpenSearch upgrade, release docs, draft release, tag request, wrap-up. It reports what is already done, with links, and continues from the first unfinished step. A release usually takes days (reviews, Maven publication, the admins), so run the skill again with the same version whenever you want to continue; it always starts from the current state on GitHub.
 
-- Example: https://forum.opensearch.org/t/prometheus-exporter-plugin-1-3-3-0-released/9936
+**What it does without asking:** read-only checks (git, GitHub, Maven Central), local builds in a temporary worktree, and the smoke test.
+
+**What it asks before doing:** anything visible to others. It shows the full text and waits for your approval before it pushes a branch, opens, edits, comments on or closes a PR or issue, or creates or edits a release.
+
+**What it cannot do:** create the release tag (only OpenSearch admins can; the skill prepares the request issue) or post on the forum (the skill drafts the announcement for you).
+
+**Prerequisites:**
+
+- [`gh`](https://cli.github.com) logged in as a maintainer of this repository
+- a fork of the repository as a git remote, for the PR branches
+- the JDK version from the target branch's CI (`.github/workflows/CI.yml`); JDK 21 for current branches
+- network access to Maven Central and `artifacts.opensearch.org` (the smoke test downloads OpenSearch)
+
+**Typical blockers it reports:** OpenSearch `X.Y.Z` artifacts not on Maven Central yet (the build fails until they are), a failing build or smoke test, a plugin patch release with no new commits, or an open PR that already does the upgrade.
 
 ## Done!
 
