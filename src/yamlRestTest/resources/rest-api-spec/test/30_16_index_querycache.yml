@@ -53,6 +53,18 @@
   - match:
       $body: |
         /.*
+        \# \s HELP \s opensearch_index_querycache_cache_size_number (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_querycache_cache_size_number \s gauge \n
+        (
+          opensearch_index_querycache_cache_size_number\{
+              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+          ,\} \s+ \d+\.\d+ \n?
+        ){2}
+        .*/
+
+  - match:
+      $body: |
+        /.*
         \# \s HELP \s opensearch_index_querycache_evictions_count (\s|\w|\d)+ \n
         \# \s TYPE \s opensearch_index_querycache_evictions_count \s gauge \n
         (
