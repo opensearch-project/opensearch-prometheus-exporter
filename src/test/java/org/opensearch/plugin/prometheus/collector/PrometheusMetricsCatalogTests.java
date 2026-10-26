@@ -23,6 +23,8 @@ import java.lang.management.ManagementFactory;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
 
@@ -84,6 +86,10 @@ public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
 
     /**
      * Both renderings enumerate the same registry, so they must agree byte for byte.
+     * <p>
+     * {@code utf8ToString()} here and below leaves the pages untouched but copies them all into one contiguous
+     * String, which is exactly the allocation the paging avoids. That is fine in a test, but production code
+     * must not call it on the response.
      */
     @SuppressWarnings("deprecation")
     public void testTextFormatBytesIsIdenticalToTextFormat() throws IOException {
@@ -217,5 +223,20 @@ public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
 
         expectThrows(IllegalArgumentException.class,
                 () -> catalog.registerCollector(filter.collector("test-cluster", "node-1", "AbCdEf0123456789")));
+    }
+
+    /**
+     * The registry checks only the names a collector describes, so a metric added to the action filter but
+     * left out of its description would be rendered without being checked for a clash.
+     */
+    public void testRegisteredCollectorDescribesEveryMetricItCollects() {
+        Collector collector = new PrometheusActionFilter("opensearch_")
+                .collector("test-cluster", "node-1", "AbCdEf0123456789");
+
+        Set<String> described = ((Collector.Describable) collector).describe().stream()
+                .map(family -> family.name).collect(Collectors.toSet());
+        Set<String> collected = collector.collect().stream()
+                .map(family -> family.name).collect(Collectors.toSet());
+        assertEquals(collected, described);
     }
 }

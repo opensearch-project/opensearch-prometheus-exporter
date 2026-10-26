@@ -85,6 +85,8 @@ public class PrometheusActionFilter implements ActionFilter {
     private static final String OUTCOME_SERVER_ERROR = "server_error";
 
     private final CollectorRegistry registry;
+    private final Histogram latency;
+    private final Counter requests;
     private final Map<String, ActionMetrics> metricsByAction;
 
     /**
@@ -96,7 +98,7 @@ public class PrometheusActionFilter implements ActionFilter {
     public PrometheusActionFilter(String metricPrefix) {
         this.registry = new CollectorRegistry();
 
-        Histogram latency = Histogram.build()
+        this.latency = Histogram.build()
                 .name(metricPrefix + LATENCY_METRIC)
                 .help("Latency of successful transport actions in seconds. Failed requests are counted in "
                         + metricPrefix + REQUESTS_METRIC + " but their latency is not observed here, because "
@@ -106,7 +108,7 @@ public class PrometheusActionFilter implements ActionFilter {
                 .buckets(LATENCY_BUCKETS)
                 .register(registry);
 
-        Counter requests = Counter.build()
+        this.requests = Counter.build()
                 .name(metricPrefix + REQUESTS_METRIC)
                 .help("Count of completed transport actions, by outcome.")
                 .labelNames("action", "outcome")
@@ -231,9 +233,13 @@ public class PrometheusActionFilter implements ActionFilter {
                 return Collections.list(metricFamilySamples(clusterName, nodeName, nodeId));
             }
 
+            // Only the names are checked, so describe the metrics rather than collecting them: collecting
+            // here as well would build every sample twice per scrape.
             @Override
             public List<MetricFamilySamples> describe() {
-                return collect();
+                List<MetricFamilySamples> families = new ArrayList<>(latency.describe());
+                families.addAll(requests.describe());
+                return families;
             }
         }
         return new ActionCollector();

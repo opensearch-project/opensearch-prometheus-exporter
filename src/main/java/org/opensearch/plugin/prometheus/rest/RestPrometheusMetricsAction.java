@@ -168,6 +168,10 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         // Prometheus' metrics are exposed similarly the Pushgateway example except no real gateway
                         // is used and the metrics are exposed directly via OpenSearch HTTP API instead.
                         // See https://github.com/prometheus/client_java#exporting-to-a-pushgateway
+                        // The transport wraps each page of the content in a Netty composite buffer and writes it out a
+                        // slice at a time, so the document is not joined into one contiguous array. Except when the
+                        // client accepts gzip, as Prometheus does by default: Netty's compressor then writes its
+                        // output, a sixth to a seventh of the document's size, into a single growing buffer.
                         return new BytesRestResponse(RestStatus.OK, BytesRestResponse.TEXT_CONTENT_TYPE, content);
                     }
                 });
