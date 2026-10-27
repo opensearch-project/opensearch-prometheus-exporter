@@ -43,8 +43,38 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - Operating System
     - File System
     - Circuit Breaker
+    - Search Backpressure
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
+
+### Search backpressure metrics
+
+The exporter exposes the statistics from `/_nodes/stats/search_backpressure` using the
+following metrics (with the default `opensearch_` prefix). All are gauges, consistent
+with the other node statistics collected by this plugin; counts are snapshots of
+OpenSearch's cumulative values and reset when the node restarts.
+
+| Metric | Additional labels | Value |
+| --- | --- | --- |
+| `opensearch_search_backpressure_mode_bool` | `mode` | 1 for the active mode, 0 for the others: `disabled`, `monitor_only`, `enforced` |
+| `opensearch_search_backpressure_completion_count` | `task` | Completed tasks |
+| `opensearch_search_backpressure_cancellation_count` | `task` | Tasks marked for cancellation |
+| `opensearch_search_backpressure_cancellation_limit_reached_count` | `task` | Times the cancellation limit was reached |
+| `opensearch_search_backpressure_resource_tracker_cancellation_count` | `task`, `tracker` | Tasks marked for cancellation by the tracker |
+| `opensearch_search_backpressure_resource_tracker_current_max_millis` | `task`, `tracker` | Maximum current CPU or elapsed time, in milliseconds |
+| `opensearch_search_backpressure_resource_tracker_current_avg_millis` | `task`, `tracker` | Average current CPU or elapsed time, in milliseconds |
+| `opensearch_search_backpressure_resource_tracker_current_max_bytes` | `task`, `tracker` | Maximum current heap or native-memory usage, in bytes |
+| `opensearch_search_backpressure_resource_tracker_current_avg_bytes` | `task`, `tracker` | Average current heap or native-memory usage, in bytes |
+| `opensearch_search_backpressure_resource_tracker_rolling_avg_bytes` | `task`, `tracker` | Rolling average heap usage, in bytes |
+
+Every metric also has the standard `cluster`, `node`, and `nodeid` labels. The `task`
+label is `search_task` or `search_shard_task`. The `tracker` label is an OpenSearch
+resource tracker name, such as `cpu_usage_tracker`, `elapsed_time_tracker`,
+`heap_usage_tracker`, or `native_memory_usage_tracker`. Labels never contain task IDs
+or query text. Only fields reported by OpenSearch are emitted: millisecond metrics
+are omitted for memory trackers, and byte metrics are omitted for time trackers. Native
+memory has no rolling average. Missing task or tracker statistics are omitted rather
+than reported as zero. No additional exporter configuration is required.
 
 ## Compatibility Matrix
 
