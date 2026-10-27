@@ -40,6 +40,10 @@ import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
+import org.opensearch.common.xcontent.XContentHelper;
+import org.opensearch.core.common.bytes.BytesReference;
+import org.opensearch.core.xcontent.MediaTypeRegistry;
+import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.http.HttpStats;
 import org.opensearch.indices.NodeIndicesStats;
 import org.opensearch.core.indices.breaker.AllCircuitBreakerStats;
@@ -50,6 +54,8 @@ import org.opensearch.monitor.jvm.JvmStats;
 import org.opensearch.monitor.os.OsStats;
 import org.opensearch.monitor.process.ProcessStats;
 import org.opensearch.script.ScriptStats;
+import org.opensearch.search.backpressure.settings.SearchBackpressureMode;
+import org.opensearch.search.backpressure.stats.SearchBackpressureStats;
 import org.opensearch.threadpool.ThreadPoolStats;
 import org.opensearch.transport.TransportStats;
 
@@ -103,6 +109,7 @@ public class PrometheusMetricsCollector {
         registerJVMMetrics();
         registerOsMetrics();
         registerFsMetrics();
+        registerSearchBackpressureMetrics();
         registerESSettings();
     }
 
@@ -916,6 +923,110 @@ public class PrometheusMetricsCollector {
         }
     }
 
+    private void registerSearchBackpressureMetrics() {
+        catalog.registerNodeGauge("search_backpressure_mode_bool", "Search backpressure mode", "mode");
+        catalog.registerNodeGauge("search_backpressure_completion_count", "Search backpressure task completions", "task");
+        catalog.registerNodeGauge("search_backpressure_cancellation_count", "Search backpressure cancellations", "task");
+        catalog.registerNodeGauge("search_backpressure_cancellation_limit_reached_count",
+                "Search backpressure cancellation limit reached count", "task");
+        catalog.registerNodeGauge("search_backpressure_resource_tracker_cancellation_count",
+                "Search backpressure resource tracker cancellations", "task", "tracker");
+        catalog.registerNodeGauge("search_backpressure_resource_tracker_current_max_millis",
+                "Search backpressure resource tracker current max time in milliseconds", "task", "tracker");
+        catalog.registerNodeGauge("search_backpressure_resource_tracker_current_avg_millis",
+                "Search backpressure resource tracker current average time in milliseconds", "task", "tracker");
+        catalog.registerNodeGauge("search_backpressure_resource_tracker_current_max_bytes",
+                "Search backpressure resource tracker current max bytes", "task", "tracker");
+        catalog.registerNodeGauge("search_backpressure_resource_tracker_current_avg_bytes",
+                "Search backpressure resource tracker current average bytes", "task", "tracker");
+        catalog.registerNodeGauge("search_backpressure_resource_tracker_rolling_avg_bytes",
+                "Search backpressure resource tracker rolling average bytes", "task", "tracker");
+    }
+
+    private void updateSearchBackpressureMetrics(Tuple<String, String> nodeInfo, @Nullable SearchBackpressureStats stats) {
+        if (stats == null) {
+            return;
+        }
+
+        // SearchBackpressureStats has no getters; use its Nodes Stats API representation.
+        Map<?, ?> searchBackpressure;
+        try {
+            BytesReference content = org.opensearch.core.xcontent.XContentHelper.toXContent(
+                    stats, MediaTypeRegistry.JSON, ToXContent.EMPTY_PARAMS, false);
+            searchBackpressure = asMap(XContentHelper.convertToMap(content, false, MediaTypeRegistry.JSON)
+                    .v2().get("search_backpressure"));
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to serialize search backpressure stats for node " + nodeInfo.v2(), e);
+        }
+        if (searchBackpressure == null) {
+            return;
+        }
+
+        for (SearchBackpressureMode mode : SearchBackpressureMode.values()) {
+            catalog.setNodeGauge(nodeInfo, "search_backpressure_mode_bool",
+                    mode.getName().equals(searchBackpressure.get("mode")) ? 1 : 0, mode.getName());
+        }
+        updateSearchBackpressureTaskMetrics(nodeInfo, "search_task", asMap(searchBackpressure.get("search_task")));
+        updateSearchBackpressureTaskMetrics(nodeInfo, "search_shard_task", asMap(searchBackpressure.get("search_shard_task")));
+    }
+
+    private void updateSearchBackpressureTaskMetrics(
+            Tuple<String, String> nodeInfo, String taskType, @Nullable Map<?, ?> taskStats) {
+        if (taskStats == null) {
+            return;
+        }
+
+        setNodeGaugeIfNumber(nodeInfo, "search_backpressure_completion_count", taskStats.get("completion_count"), taskType);
+        Map<?, ?> cancellationStats = asMap(taskStats.get("cancellation_stats"));
+        if (cancellationStats != null) {
+            setNodeGaugeIfNumber(nodeInfo, "search_backpressure_cancellation_count",
+                    cancellationStats.get("cancellation_count"), taskType);
+            setNodeGaugeIfNumber(nodeInfo, "search_backpressure_cancellation_limit_reached_count",
+                    cancellationStats.get("cancellation_limit_reached_count"), taskType);
+        }
+
+        // Labels come only from OpenSearch's fixed task types and resource tracker names.
+        Map<?, ?> resourceTrackerStats = asMap(taskStats.get("resource_tracker_stats"));
+        if (resourceTrackerStats != null) {
+            for (Map.Entry<?, ?> entry : resourceTrackerStats.entrySet()) {
+                if (entry.getKey() instanceof String trackerName) {
+                    updateSearchBackpressureResourceTrackerMetrics(nodeInfo, taskType, trackerName, asMap(entry.getValue()));
+                }
+            }
+        }
+    }
+
+    private void updateSearchBackpressureResourceTrackerMetrics(
+            Tuple<String, String> nodeInfo, String taskType, String trackerName, @Nullable Map<?, ?> trackerStats) {
+        if (trackerStats == null) {
+            return;
+        }
+
+        setNodeGaugeIfNumber(nodeInfo, "search_backpressure_resource_tracker_cancellation_count",
+                trackerStats.get("cancellation_count"), taskType, trackerName);
+        setNodeGaugeIfNumber(nodeInfo, "search_backpressure_resource_tracker_current_max_millis",
+                trackerStats.get("current_max_millis"), taskType, trackerName);
+        setNodeGaugeIfNumber(nodeInfo, "search_backpressure_resource_tracker_current_avg_millis",
+                trackerStats.get("current_avg_millis"), taskType, trackerName);
+        setNodeGaugeIfNumber(nodeInfo, "search_backpressure_resource_tracker_current_max_bytes",
+                trackerStats.get("current_max_bytes"), taskType, trackerName);
+        setNodeGaugeIfNumber(nodeInfo, "search_backpressure_resource_tracker_current_avg_bytes",
+                trackerStats.get("current_avg_bytes"), taskType, trackerName);
+        setNodeGaugeIfNumber(nodeInfo, "search_backpressure_resource_tracker_rolling_avg_bytes",
+                trackerStats.get("rolling_avg_bytes"), taskType, trackerName);
+    }
+
+    @Nullable
+    private Map<?, ?> asMap(Object value) {
+        return value instanceof Map<?, ?> map ? map : null;
+    }
+
+    private void setNodeGaugeIfNumber(Tuple<String, String> nodeInfo, String metric, Object value, String... labelValues) {
+        if (value instanceof Number number) {
+            catalog.setNodeGauge(nodeInfo, metric, number.doubleValue(), labelValues);
+        }
+    }
+
     @SuppressWarnings("checkstyle:LineLength")
     private void registerESSettings() {
         catalog.registerClusterGauge("cluster_routing_allocation_disk_threshold_enabled", "Disk allocation decider is enabled");
@@ -993,6 +1104,7 @@ public class PrometheusMetricsCollector {
             updateJVMMetrics(nodeInfo, s.getJvm());
             updateOsMetrics(nodeInfo, s.getOs());
             updateFsMetrics(nodeInfo, s.getFs());
+            updateSearchBackpressureMetrics(nodeInfo, s.getSearchBackpressureStats());
         }
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
