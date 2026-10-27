@@ -1,0 +1,63 @@
+---
+teardown:
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            search_backpressure.mode: null
+
+---
+"Search backpressure metrics follow the configured mode":
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            search_backpressure.mode: monitor_only
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="monitor_only"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="enforced"[^}]*\}\s0\.0\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="disabled"[^}]*\}\s0\.0\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_cancellation_count\{[^}]*task="search_task"[^}]*\}\s[0-9.E+]+\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_completion_count\{[^}]*task="search_shard_task"[^}]*\}\s[0-9.E+]+\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_resource_tracker_current_max_millis\{[^}]*tracker="cpu_usage_tracker"[^}]*\}\s[0-9.E+]+\n.*/
+  - match:
+      $body: /.*opensearch_http_open_server_number\{[^}]*\}\s[0-9.E+]+\n.*/
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            search_backpressure.mode: enforced
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="enforced"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="monitor_only"[^}]*\}\s0\.0\n.*/
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            search_backpressure.mode: disabled
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="disabled"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="enforced"[^}]*\}\s0\.0\n.*/
+  - match:
+      $body: /.*opensearch_search_backpressure_mode_bool\{[^}]*mode="monitor_only"[^}]*\}\s0\.0\n.*/
