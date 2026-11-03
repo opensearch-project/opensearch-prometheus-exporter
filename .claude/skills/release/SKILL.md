@@ -38,7 +38,19 @@ mode (e.g. "dry run", see below). If there is no version, ask for it.
   worktree and show the complete output of `test-report.sh`, see [Test report](#test-report). If the report
   fails, do not offer to push. Docs-only branches (`release-docs-$V`, `compat-matrix-$V`) do not need one.
 - PRs are opened from the user's fork against `opensearch-project/opensearch-prometheus-exporter`.
-  The fork is the git remote that is not `opensearch-project`. Commits need a DCO sign-off (`git commit -s`).
+  Commits need a DCO sign-off (`git commit -s`). The fork is the git remote that is not `opensearch-project`,
+  and its name and owner differ per contributor, so work them out from the remotes. If there is not exactly one
+  such remote, ask which one to use. Always pass `--base`: without it, `gh pr create` targets `main`, and a
+  maintenance release would go to the wrong branch.
+  ```bash
+  FORK=$(git remote -v | awk '$3 == "(push)" && $2 !~ /opensearch-project/ {print $1}')
+  FORK_OWNER=$(git remote get-url "$FORK" | sed -E 's#^.*[:/]([^/]+)/[^/]+$#\1#')
+  git -C <worktree> push -u "$FORK" <pr-branch>
+  gh pr create -R $R --base <target-branch> --head "${FORK_OWNER}:<pr-branch>" --title "<title>" --body-file <file>
+  ```
+  Keep the braces in `--head`: in zsh, `$FORK_OWNER:release-...` loses the `:r` as a history modifier.
+  `<target-branch>` is the branch the worktree is based on: for 2.19.7.0, `v2.19` for the upgrade PR and
+  `main` for the `COMPATIBILITY.md` PR. Check the PR's base with `gh pr view <n> -R $R --json baseRefName`.
 - **Do all branch work in worktrees; never switch the user's checkout.** Run the skill from a `main`
   checkout (the skill exists only on `main`). Never run `git checkout`, `git switch` or `git stash` there,
   and leave its uncommitted changes alone. The skill's own files (`.claude/skills/release/`) are not on the
@@ -250,8 +262,9 @@ Otherwise, in a new worktree on branch `release-$V` based on `origin/<target-bra
    and 2b were left).
 6. Run the BWC tests and show the [test report](#test-report). This also applies when only the `-SNAPSHOT`
    switch was left.
-7. After confirmation, push to the fork and open the PR against the target branch, referencing the
-   tracking issue. Examples: #614 (main), #563 (v2.19). Remove the worktree once the branch is pushed.
+7. After confirmation, push to the fork and open the PR against the target branch with the commands in
+   Ground rules, referencing the tracking issue. Examples: #614 (main), #563 (v2.19). Remove the worktree once
+   the branch is pushed.
 
 For a **patch release** (`N > 0`) there is no OpenSearch upgrade. Only `version = $V` changes in
 `gradle.properties` (plus `-SNAPSHOT` → `X.Y.Z` if the branch has it); leave the BWC settings alone. The BWC tests cover the
