@@ -26,7 +26,7 @@ Open an issue titled `Release X.Y.Z.N` with a checklist, and keep it updated dur
 
 ### 2. Prepare the release branch
 
-A release is always built against the **final** OpenSearch version from Maven Central, never against a `-SNAPSHOT`. Between releases, `main` (and `v3.6`) build against `X.Y.Z-SNAPSHOT`, but the release commit must have `opensearch_version = X.Y.Z`, so that the tag reproduces the released ZIP. OpenSearch publishes its Maven artifacts some days after its GitHub release, so check first that [`build-tools` `X.Y.Z`](https://repo.maven.apache.org/maven2/org/opensearch/gradle/build-tools/) is on Maven Central. Until it is, the release has to wait.
+A release is always built against the **final** OpenSearch version from Maven Central, never against a `-SNAPSHOT`. Between releases, `main` (and `v3.6`) build against `X.Y.Z-SNAPSHOT`, but the release commit must have `opensearch_version = X.Y.Z`, so that the tag holds the source and the dependency versions of the released ZIP. OpenSearch publishes its Maven artifacts some days after its GitHub release, so check first that [`build-tools` `X.Y.Z`](https://repo.maven.apache.org/maven2/org/opensearch/gradle/build-tools/) is on Maven Central. Until it is, the release has to wait.
 
 First check the target branch: the OpenSearch upgrade is often merged well before the release, sometimes because the community needed a build against the new OpenSearch. If `gradle.properties` already has the new `version` and the final `opensearch_version`, no upgrade PR is needed; only the release docs (Compatibility Matrix row, install command) may still be missing, and those go in a separate PR (example: [#576](https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/576)). If the upgrade was merged as `X.Y.Z-SNAPSHOT`, open one PR titled `Prepare release X.Y.Z.N` that switches it to `X.Y.Z` and adds the release docs. Also check for an open upgrade PR, and help finish it instead of opening a second one.
 
@@ -59,7 +59,7 @@ $ (cd ../release-X.Y.Z.N && ./gradlew clean build)
 $ shasum -a 256 ../release-X.Y.Z.N/build/distributions/prometheus-exporter-X.Y.Z.N.zip
 ```
 
-Note the checksum: the tag request and the final check after publishing use it.
+Note the checksum: the tag request and the final check after publishing use it. Builds are not byte-for-byte reproducible, and every build of the same source gives a different checksum. So upload this exact ZIP to the draft release, and if you rebuild, repeat the smoke test and use the new checksum.
 
 Smoke-test the ZIP: install it into the [minimal OpenSearch distribution](https://opensearch.org/downloads.html) `X.Y.Z`, start it, and check `GET /_prometheus/metrics`. [smoke-test.sh](.claude/skills/release/scripts/smoke-test.sh) does all of this. Run it from the `main` checkout, because maintenance branches don't have the script:
 
@@ -105,13 +105,13 @@ Asking in plain words ("let's release 3.10.0.0", "continue the 2.19.7.0 release"
 
 Run it from a `main` checkout, also for maintenance releases: the skill exists only on `main`. It picks the target branch from the version (e.g. `2.19.7.0` → `v2.19`) and does all branch work in separate git worktrees, so your checkout stays on `main` and your uncommitted changes stay where they are.
 
-**Start with a dry run.** Before the real release, ask for a dry run, for example *"do a dry run of the release skill for 2.19.7.0"*. The skill then goes through every phase without changing anything on GitHub: it runs the checks, applies the version changes and builds in a temporary worktree, runs the smoke test, and drafts the PR descriptions, release notes and tag request. It ends with a report of what each phase would do and anything that blocks the release. Typical problems it catches early: OpenSearch artifacts missing from Maven Central, build failures with the new OpenSearch version, wrong dates in the compatibility matrix, and nothing new to release. When the dry run looks fine, run the release for real.
+**Start with a dry run.** Before the real release, ask for a dry run, for example *"do a dry run of the release skill for 2.19.7.0"*. The skill then goes through every phase without changing anything on GitHub: it runs the checks, applies the version changes and builds in a temporary worktree, runs the BWC tests and the smoke test, shows a test report, and drafts the PR descriptions, release notes and tag request. It ends with a report of what each phase would do and anything that blocks the release. Typical problems it catches early: OpenSearch artifacts missing from Maven Central, build failures with the new OpenSearch version, wrong dates in the compatibility matrix, and nothing new to release. When the dry run looks fine, run the release for real.
 
 **How it works.** The skill first finds out where the release is: tracking issue, OpenSearch upgrade, release docs, draft release, tag request, wrap-up. It reports what is already done, with links, and continues from the first unfinished step. A release usually takes days (reviews, Maven publication, the admins), so run the skill again with the same version whenever you want to continue; it always starts from the current state on GitHub.
 
-**What it does without asking:** read-only checks (git, GitHub, Maven Central), local builds in a temporary worktree, and the smoke test.
+**What it does without asking:** read-only checks (git, GitHub, Maven Central), local builds and BWC tests in a temporary worktree, and the smoke test.
 
-**What it asks before doing:** anything visible to others. It shows the full text and waits for your approval before it pushes a branch, opens, edits, comments on or closes a PR or issue, or creates or edits a release.
+**What it asks before doing:** anything visible to others. It shows the full text and waits for your approval before it pushes a branch, opens, edits, comments on or closes a PR or issue, or creates or edits a release. Before it asks to push a branch that changes the build, it shows a report of the test and BWC test results, and it does not offer to push if the report fails.
 
 **What it cannot do:** create the release tag (only OpenSearch admins can; the skill prepares the request issue) or post on the forum (the skill drafts the announcement for you).
 

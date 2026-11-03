@@ -24,11 +24,19 @@ mode (e.g. "dry run", see below). If there is no version, ask for it.
   release vs. patch release), keep only the one that applies.
 - **Release builds use the final OpenSearch version, never a `-SNAPSHOT`.** Between releases, `main`
   (and `v3.6`) build against `X.Y.Z-SNAPSHOT` from the OpenSearch snapshot repository. The release commit
-  must have `opensearch_version = X.Y.Z`, resolved from Maven Central, so that the tag reproduces the
-  released ZIP.
+  must have `opensearch_version = X.Y.Z`, resolved from Maven Central, so that the tag holds the source
+  and the dependency versions of the released ZIP.
+- **Upload the ZIP you tested, and never rebuild it.** Builds are not byte-for-byte reproducible: every
+  build of the same source gives a different sha256. The ZIP you hash and smoke-test in phase 3 must be the
+  one you upload to the draft, and that sha256 goes into the tag request. If you rebuild, repeat the smoke test
+  and use the new sha256.
 - **Release exactly one commit.** The tag is created on the draft's target SHA, and that SHA is not
   always the bump commit (3.8.0.0 was released from a later commit). Ask which SHA to release,
   suggesting the branch head, and use the same SHA for the build, the smoke test, the notes and the draft.
+- **Show a test report before pushing a build change.** Before you ask to push a branch that changes
+  `gradle.properties` or anything else that affects the build, run the full build and the BWC tests in its
+  worktree and show the complete output of `test-report.sh`, see [Test report](#test-report). If the report
+  fails, do not offer to push. Docs-only branches (`release-docs-$V`, `compat-matrix-$V`) do not need one.
 - PRs are opened from the user's fork against `opensearch-project/opensearch-prometheus-exporter`.
   The fork is the git remote that is not `opensearch-project`. Commits need a DCO sign-off (`git commit -s`).
 - **Do all branch work in worktrees; never switch the user's checkout.** Run the skill from a `main`
@@ -62,12 +70,40 @@ confirmation. Recommend a dry run when the user starts a release without having 
   possible, so that one run reports every problem.
 - Apply the phase 2 changes in a detached worktree in the scratchpad
   (`git worktree add --detach <scratchpad>/build-$V origin/<branch>`), run the build there, and, if it
-  passes, the smoke test.
+  passes, the BWC tests and the smoke test. Show the [test report](#test-report).
 - Draft everything that would be posted (PR descriptions, release notes, tag request, forum post) and
   show it, but post nothing.
 - Report per phase: done / would do (with the exact change) / blocked (with the reason and what unblocks it).
   Also report anything wrong you notice on the way, e.g. a wrong date in a compatibility matrix.
-- Afterwards, save the changes as a patch in the scratchpad and remove the worktree.
+- Afterwards, save the changes as a patch in the scratchpad. Remove the worktree once the user has seen
+  the test report.
+
+## Test report
+
+Run this in the worktree of the branch, after its last change. Any later change means running all of it again.
+
+```bash
+cd <worktree>
+JAVA_HOME=<jdk> ./gradlew clean build
+JAVA_HOME=<jdk> ./bwctest.sh          # no clean in between: the report reads the results of both
+<main-checkout>/.claude/skills/release/scripts/test-report.sh $V <worktree> > <scratchpad>/test-report-$V.txt
+echo "report exit: $?"                # not 0: the report failed
+cat <scratchpad>/test-report-$V.txt
+```
+
+Use the JDK from phase 2a. `./bwctest.sh` is not part of `build`, and it needs the previous release's ZIP on GitHub.
+
+Show the full report to the user, and only then ask to push. It reads the Gradle result files and the BWC
+node logs, so it fails if a suite is missing, ran nothing, failed or skipped tests, or if a BWC node did not go
+from `BWCversion` to `X.Y.Z` with the plugin loaded on both. If it fails, stop and report; do not offer to push.
+
+Do not judge the result from the Gradle output: `bwcTestSuite NO-SOURCE` is normal, and `BUILD SUCCESSFUL`
+does not show which tests ran. The worktree's results are gone once it is removed, so keep it until the user
+has seen the report.
+
+When you show the report, say what the BWC tests cover: the plugin loads on the upgraded nodes. They do not
+scrape `/_prometheus/metrics` (only the smoke test does, on a new single node) and do not check the plugin's
+version.
 
 ## Versions and branches
 
@@ -211,14 +247,17 @@ Otherwise, in a new worktree on branch `release-$V` based on `origin/<target-bra
    Put such fixes in this PR and explain them in the description.
 4. If 2b is also needed, make its changes in the same PR (one PR, like #614).
 5. Commit (`-s`) as `Bump to OpenSearch X.Y.Z` (or `Prepare release X.Y.Z.N` when only the `-SNAPSHOT` switch
-   and 2b were left). Then, after confirmation, push to the fork and open the PR
-   against the target branch, referencing the tracking issue. Examples: #614 (main), #563 (v2.19).
-   Remove the worktree once the branch is pushed.
+   and 2b were left).
+6. Run the BWC tests and show the [test report](#test-report). This also applies when only the `-SNAPSHOT`
+   switch was left.
+7. After confirmation, push to the fork and open the PR against the target branch, referencing the
+   tracking issue. Examples: #614 (main), #563 (v2.19). Remove the worktree once the branch is pushed.
 
 For a **patch release** (`N > 0`) there is no OpenSearch upgrade. Only `version = $V` changes in
 `gradle.properties` (plus `-SNAPSHOT` → `X.Y.Z` if the branch has it); leave the BWC settings alone. The BWC tests cover the
 upgrade from the previous OpenSearch version, which is the same as before. Check that the branch builds
 against OpenSearch `X.Y.Z`, and make this change together with 2b in a PR titled `Prepare release X.Y.Z.N`.
+Show the [test report](#test-report) before you ask to push it.
 
 ### 2b. Release docs
 

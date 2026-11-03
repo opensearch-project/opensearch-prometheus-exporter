@@ -29,6 +29,8 @@ PORT="${SMOKE_TEST_PORT:-9250}"
 
 [[ -f "$PLUGIN_ZIP" ]] || { echo "Plugin ZIP not found: $PLUGIN_ZIP" >&2; exit 1; }
 
+mkdir -p "$WORK_DIR"
+
 case "$(uname -m)" in
     arm64|aarch64) ARCH=arm64 ;;
     *) ARCH=x64 ;;
