@@ -37,14 +37,21 @@ mode (e.g. "dry run", see below). If there is no version, ask for it.
   `gradle.properties` or anything else that affects the build, run the full build and the BWC tests in its
   worktree and show the complete output of `test-report.sh`, see [Test report](#test-report). If the report
   fails, do not offer to push. Docs-only branches (`release-docs-$V`, `compat-matrix-$V`) do not need one.
-- PRs are opened from the user's fork against `opensearch-project/opensearch-prometheus-exporter`.
-  Commits need a DCO sign-off (`git commit -s`). The fork is the git remote that is not `opensearch-project`,
-  and its name and owner differ per contributor, so work them out from the remotes. If there is not exactly one
-  such remote, ask which one to use. Always pass `--base`: without it, `gh pr create` targets `main`, and a
-  maintenance release would go to the wrong branch.
+- **Find the git remotes by URL, never by name.** Remote names differ per clone: `origin` can be
+  `opensearch-project` or the contributor's fork, and reading a fork's branches and tags gives wrong, stale
+  answers. Every command in this skill uses `$UPSTREAM`. Variables do not carry over between shell calls, so set
+  it (and `$FORK` when pushing) in each call:
   ```bash
-  FORK=$(git remote -v | awk '$3 == "(push)" && $2 !~ /opensearch-project/ {print $1}')
-  FORK_OWNER=$(git remote get-url "$FORK" | sed -E 's#^.*[:/]([^/]+)/[^/]+$#\1#')
+  UPSTREAM=$(git remote -v | awk '$3 == "(fetch)" && $2 ~ /[:\/]opensearch-project\// {print $1}')
+  FORK=$(git remote -v | awk '$3 == "(push)" && $2 !~ /[:\/]opensearch-project\// {print $1}')
+  FORK_OWNER=$(git remote get-url --push "$FORK" | sed -E 's#^.*[:/]([^/]+)/[^/]+$#\1#')
+  ```
+  `$UPSTREAM` must be exactly one remote. If it is not, stop and ask: with no such remote, the user has to add
+  one. `$FORK` is needed only for pushing; if it is not exactly one remote, ask which one to use.
+- PRs are opened from the user's fork against `opensearch-project/opensearch-prometheus-exporter`.
+  Commits need a DCO sign-off (`git commit -s`). Always pass `--base`: without it, `gh pr create` targets
+  `main`, and a maintenance release would go to the wrong branch.
+  ```bash
   git -C <worktree> push -u "$FORK" <pr-branch>
   gh pr create -R $R --base <target-branch> --head "${FORK_OWNER}:<pr-branch>" --title "<title>" --body-file <file>
   ```
@@ -58,16 +65,16 @@ mode (e.g. "dry run", see below). If there is no version, ask for it.
   give every PR branch and every build its own worktree in the scratchpad, and always run the script
   and read the templates from the `main` checkout:
   ```bash
-  git fetch origin
+  git fetch $UPSTREAM
   git worktree prune                                                                  # drop worktrees of past sessions
-  git worktree add -b <pr-branch> <scratchpad>/pr-<pr-branch> origin/<base-branch>    # a PR branch
+  git worktree add -b <pr-branch> <scratchpad>/pr-<pr-branch> $UPSTREAM/<base-branch>    # a PR branch
   git worktree add --detach <scratchpad>/build-$V <sha>                               # a build
   ```
   Edit, build, commit and push inside the worktree (`git -C <worktree> ...`). Once the branch is
   pushed, remove the worktree (`git worktree remove <worktree>`). Keep the local branch until its PR
   is merged, in case it needs more commits. A release spans several sessions, and each session has its
   own scratchpad, so a PR branch from an earlier session usually still exists locally: then
-  `git worktree add -b` fails. In that case, show the branch's state (`git log origin/<base-branch>..<pr-branch>`,
+  `git worktree add -b` fails. In that case, show the branch's state (`git log $UPSTREAM/<base-branch>..<pr-branch>`,
   and whether it is pushed and has a PR), and ask whether to continue it (`git worktree add <path> <pr-branch>`,
   without `-b`) or start over.
 - Today's date: use `date`, never guess.
@@ -81,7 +88,7 @@ confirmation. Recommend a dry run when the user starts a release without having 
 - Run all the read-only checks of each phase, and continue past a blocker to the later phases where
   possible, so that one run reports every problem.
 - Apply the phase 2 changes in a detached worktree in the scratchpad
-  (`git worktree add --detach <scratchpad>/build-$V origin/<branch>`), run the build there, and, if it
+  (`git worktree add --detach <scratchpad>/build-$V $UPSTREAM/<branch>`), run the build there, and, if it
   passes, the BWC tests and the smoke test. Show the [test report](#test-report).
 - Draft everything that would be posted (PR descriptions, release notes, tag request, forum post) and
   show it, but post nothing.
@@ -129,7 +136,7 @@ Plugin `X.Y.Z.N` runs on OpenSearch `X.Y.Z` only. There are two kinds of release
 Derive everything from the plugin version:
 
 The current major is released from `main`, older lines from `vX.Y` maintenance branches (list them with
-`git ls-remote --heads origin`). Known layouts (as of Oct 2026):
+`git ls-remote --heads $UPSTREAM`). Known layouts (as of Oct 2026):
 
 | | `main` | `v3.6` | `v2.19` |
 |---|---|---|---|
@@ -150,13 +157,13 @@ the highest `X.Y.*` tag for a maintenance branch. Use the upstream tags, ignorin
 duplicates (e.g. `v2.19.6.0`), and sort them as versions, not as text (`3.10.0.0` comes after `3.9.0.0`):
 
 ```bash
-git ls-remote --tags origin | awk '{print $2}' | sed 's#refs/tags/##; s#\^{}##' \
+git ls-remote --tags $UPSTREAM | awk '{print $2}' | sed 's#refs/tags/##; s#\^{}##' \
   | grep -E '^3\.[0-9]+\.[0-9]+\.[0-9]+$' | sort -V -u    # e.g. all 3.x release tags
 ```
  Release tags are a
 mix of lightweight (e.g. `2.19.6.0`) and annotated (e.g. `3.9.0.0`) tags, and only annotated ones have a peeled
 `^{}` line, so do not filter on it. Resolve a tag's commit with
-`git ls-remote origin refs/tags/<tag> 'refs/tags/<tag>^{}' | tail -1 | cut -f1`. Local tags can
+`git ls-remote $UPSTREAM refs/tags/<tag> 'refs/tags/<tag>^{}' | tail -1 | cut -f1`. Local tags can
 differ: a maintainer's locally signed tag may point to another commit than the one the admins published
 (seen with `3.7.0.0`). Use the upstream SHA in `git log` / `git rev-list` ranges, and never overwrite
 local tags without asking.
@@ -167,11 +174,11 @@ If `main` has moved on to a newer OpenSearch and there is no `vX.Y` branch, stop
 new branch is requested from the admins like the `v3.6` one was (opensearch-project/.github#505).
 
 The paths and layout differ between branches, and branches drift. Always read the files on the
-target branch (`git show origin/<branch>:<path>`) instead of trusting this table. For a branch not
+target branch (`git show $UPSTREAM/<branch>:<path>`) instead of trusting this table. For a branch not
 covered here, check its last release commit to see what it changed, and tell the user to add it to the table.
 
 For a patch release (`N > 0`), first check that there is something to release: if
-`git log <prev-sha>..origin/<branch>` is empty, the release has no content. Tell the user, and mention any
+`git log <prev-sha>..$UPSTREAM/<branch>` is empty, the release has no content. Tell the user, and mention any
 open PRs against the branch (`gh pr list -R $R -B <branch>`). For `N = 0` an empty log is normal: the
 OpenSearch upgrade can be the only change.
 
@@ -185,14 +192,14 @@ If it is not, say so and stop: there is nothing to release yet, not even a track
 ```bash
 V=<plugin-version>; R=opensearch-project/opensearch-prometheus-exporter
 gh issue list -R $R -s all -S "\"Release $V\" in:title"                        # phase 1
-git show origin/<branch>:gradle.properties | grep -E '^(version|opensearch_version|BWC)'   # phase 2a
+git show $UPSTREAM/<branch>:gradle.properties | grep -E '^(version|opensearch_version|BWC)'   # phase 2a
 gh pr list -R $R -s all -S "OpenSearch X.Y.Z in:title"                         # phase 2a: upgrade PR open or merged?
-git show origin/<branch>:<matrix-file> | grep "$V"; git show origin/<branch>:README.md | grep "download/$V/"  # phase 2b
+git show $UPSTREAM/<branch>:<matrix-file> | grep "$V"; git show $UPSTREAM/<branch>:README.md | grep "download/$V/"  # phase 2b
 gh release view $V -R $R --json isDraft,targetCommitish,assets,publishedAt    # phase 3 / 5
 gh issue list -R opensearch-project/.github -s all -S "\"release tag $V\" in:title"   # phase 4
 ```
 
-In shell variables, write `"origin/${B}:path"` with braces: in zsh, `$B:g...` or `$B:r...` is a history
+In shell variables, write `"$UPSTREAM/${B}:path"` with braces: in zsh, `$B:g...` or `$B:r...` is a history
 modifier and silently corrupts the ref. Set variables on their own lines, not at the end of a `&&` chain,
 so that a failing command before them cannot leave them empty.
 
@@ -221,7 +228,7 @@ open one.
 
 Already done if `gradle.properties` on the target branch has `version = $V`, `opensearch_version = X.Y.Z`
 (the final version, or empty on `v2.19`), and `BWCversion` / `BWCPluginVersion` pointing to the previous
-release. Check the BWC test class too. Find the PR that did it (`git log origin/<branch> -- gradle.properties`),
+release. Check the BWC test class too. Find the PR that did it (`git log $UPSTREAM/<branch> -- gradle.properties`),
 so you can list it in the release notes.
 
 The usual state on `main` (and `v3.6`): the upgrade to `X.Y.Z-SNAPSHOT` was merged before OpenSearch `X.Y.Z`
@@ -246,7 +253,7 @@ curl -s -o /dev/null -w "%{http_code}\n" https://repo.maven.apache.org/maven2/or
 On anything other than `200`, stop, tell the user the release is blocked, and link the opensearch-build release
 ticket (it is usually still open). Phases 1 and 2b can still go ahead.
 
-Otherwise, in a new worktree on branch `release-$V` based on `origin/<target-branch>` (see Ground rules):
+Otherwise, in a new worktree on branch `release-$V` based on `$UPSTREAM/<target-branch>` (see Ground rules):
 
 1. `gradle.properties`: `version = $V`; `opensearch_version = X.Y.Z` (empty on `v2.19`);
    `BWCversion` = the previous release's OpenSearch version, and `BWCPluginVersion` = the previous release
@@ -287,7 +294,7 @@ If no upgrade PR is being opened, make these changes in their own worktree (bran
 commit them as `Update compatibility matrix for X.Y.Z.N` (`-s`) and, after confirmation, open a PR (example: #576).
 
 **Maintenance releases:** check `COMPATIBILITY.md` on `main` too, and if the row is missing, open a small
-PR against `main` that adds it, from a separate worktree based on `origin/main` (branch `compat-matrix-$V`).
+PR against `main` that adds it, from a separate worktree based on `$UPSTREAM/main` (branch `compat-matrix-$V`).
 Do not use the user's `main` checkout for it. Otherwise the main matrix falls behind (see #600).
 
 Phase 2 is done when 2a and 2b are both on the target branch. Update the tracking issue checklist
@@ -331,7 +338,7 @@ Phase 2 is done when 2a and 2b are both on the target branch. Update the trackin
 ## Phase 4: Request the tag
 
 Fill [templates/tag-request.md](templates/tag-request.md) with the SHA, the sha256, the tracking issue,
-the bump PR and the maintainers (from `git show origin/main:MAINTAINERS.md`), and open it after confirmation:
+the bump PR and the maintainers (from `git show $UPSTREAM/main:MAINTAINERS.md`), and open it after confirmation:
 
 ```bash
 gh issue create -R opensearch-project/.github --label github-request \
@@ -346,7 +353,7 @@ which creates the tag. Phase 4 is done when `gh release view $V` shows it publis
 1. **Verify the published release:** download the asset from its public URL
    (`https://github.com/opensearch-project/opensearch-prometheus-exporter/releases/download/$V/prometheus-exporter-$V.zip`)
    and check that its sha256 matches the one in the tag request issue (and the asset's `digest` in
-   `gh release view $V -R $R --json assets`). Check that `git ls-remote --tags origin $V`
+   `gh release view $V -R $R --json assets`). Check that `git ls-remote --tags $UPSTREAM $V`
    points to the released SHA.
 2. **Fix the release date** in the compatibility matrix, so it matches `publishedAt` (format `Mon DD, YYYY`).
    If it differs, open a small PR (`Fix X.Y.Z.N release date in compatibility matrix`, see #616), against

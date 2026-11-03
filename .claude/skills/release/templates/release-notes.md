@@ -6,11 +6,12 @@ List every first-parent commit between the previous release tag and the release 
 commit to its PR. Squash-merged Dependabot commits often have no `(#NNN)` suffix, so do not parse
 commit titles; ask the API instead:
 
-Use the previous tag's **upstream** commit, not the local tag, which can point elsewhere (see SKILL.md):
+Use the previous tag's **upstream** commit, not the local tag, which can point elsewhere. For this and for
+`$UPSTREAM`, see SKILL.md:
 
 ```bash
 R=opensearch-project/opensearch-prometheus-exporter
-PREV_SHA=$(git ls-remote origin "refs/tags/<prev-tag>" "refs/tags/<prev-tag>^{}" | tail -1 | cut -f1)
+PREV_SHA=$(git ls-remote $UPSTREAM "refs/tags/<prev-tag>" "refs/tags/<prev-tag>^{}" | tail -1 | cut -f1)
 for c in $(git rev-list --first-parent "${PREV_SHA}..<sha>"); do
   line=""
   for attempt in 1 2 3; do   # the API sometimes returns an empty body; retry

@@ -118,7 +118,7 @@ Run it from a `main` checkout, also for maintenance releases: the skill exists o
 **Prerequisites:**
 
 - [`gh`](https://cli.github.com) logged in as a maintainer of this repository
-- a fork of the repository as a git remote, for the PR branches
+- two git remotes, with any names: `opensearch-project/opensearch-prometheus-exporter`, and your fork for the PR branches (the skill tells them apart by URL)
 - the JDK version from the target branch's CI (`.github/workflows/CI.yml`); JDK 21 for current branches
 - network access to Maven Central and `artifacts.opensearch.org` (the smoke test downloads OpenSearch)
 
