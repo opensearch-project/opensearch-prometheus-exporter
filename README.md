@@ -140,6 +140,10 @@ prometheus.indices_filter.selected_indices: "log-*,*log,*log*,log*-test"
 Users can select which option for filtering indices statistics.
 Default value: `"STRICT_EXPAND_OPEN_FORBID_CLOSED"`.
 
+When index metrics are enabled, the exporter also exposes
+`opensearch_indices_mappings_stats_fields`, a per-index gauge for the number of mapped fields,
+including nested object properties and multi-fields.
+
 For example to select an option:
 ```
 prometheus.indices_filter.selected_option: "LENIENT_EXPAND_OPEN"
@@ -273,5 +277,4 @@ limitations under the License.
 Prometheus is a registered trademark of The Linux Foundation. OpenSearch is a registered trademark of Amazon Web Services. Elasticsearch is a registered trademark of Elasticsearch BV.
 
 We gratefully thank all the contributors from the [Aiven organization](https://github.com/Aiven-Open) for their work on this project prior to its migration to the OpenSearch organization.
-
 
