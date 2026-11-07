@@ -50,7 +50,7 @@ import java.io.IOException;
  * prepare all data for wire transport by writing it into the {@link StreamOutput}.
  */
 public class NodePrometheusMetricsResponse extends ActionResponse {
-    private final ClusterHealthResponse clusterHealth;
+    @Nullable private final ClusterHealthResponse clusterHealth;
     private final NodesInfoResponse nodesInfoResponse;
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
@@ -63,11 +63,11 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      */
     public NodePrometheusMetricsResponse(StreamInput in) throws IOException {
         super(in);
-        clusterHealth = new ClusterHealthResponse(in);
+        clusterHealth = in.readOptionalWriteable(ClusterHealthResponse::new);
         nodesInfoResponse = new NodesInfoResponse(in);
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
-        clusterStatsData = new ClusterStatsData(in);
+        clusterStatsData = in.readOptionalWriteable(ClusterStatsData::new);
     }
 
     /**
@@ -80,7 +80,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
-    public NodePrometheusMetricsResponse(ClusterHealthResponse clusterHealth,
+    public NodePrometheusMetricsResponse(@Nullable ClusterHealthResponse clusterHealth,
                                          NodesInfoResponse localNodesInfoResponse,
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
@@ -100,6 +100,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * Get internal {@link ClusterHealthResponse} object.
      * @return ClusterHealthResponse object
      */
+    @Nullable
     public ClusterHealthResponse getClusterHealth() {
         return this.clusterHealth;
     }
@@ -138,10 +139,10 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
-        clusterHealth.writeTo(out);
+        out.writeOptionalWriteable(clusterHealth);
         nodesInfoResponse.writeTo(out);
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
-        clusterStatsData.writeTo(out);
+        out.writeOptionalWriteable(clusterStatsData);
     }
 }
