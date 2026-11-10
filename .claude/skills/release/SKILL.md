@@ -18,10 +18,16 @@ mode (e.g. "dry run", see below). If there is no version, ask for it.
 - **Confirm before every outward-facing action.** Show the full text and wait for a yes before you
   open, edit, comment on or close an issue or PR, create or edit a release, or push a branch.
 - **No leftover placeholders.** When filling a template, remove its HTML comments (they are instructions
-  for you), then check the result: `grep -nE 'X\.Y\.Z|NNNN|[A-Z]+_[A-Z_]+|<[^>]+>' <file>` must print nothing.
-  The checklist's `TODO: link to PR` is intended text and does not match. GitHub silently drops some unfilled `<placeholders>` as HTML
+  for you), then check the result: `grep -nE 'X\.Y\.Z|NNNN|[A-Z]+_[A-Z_]+([^A-Z_.]|$)|<[^>]+>' <file>` must print nothing.
+  The checklist's `TODO: link to PR` is intended text and does not match, and neither do file names such as
+  `DEVELOPER_GUIDE.md` in the repository's PR template. GitHub silently drops some unfilled `<placeholders>` as HTML
   tags, so they are easy to miss in the rendered issue. Of two alternatives in a template (e.g. OpenSearch
   release vs. patch release), keep only the one that applies.
+- **Show drafts in the chat, not only as files.** Drafts in the scratchpad can be gone when the user comes
+  back to them (seen in 2.19.7.0, where the forum post draft disappeared before it was needed). Whenever
+  the user has to act on a draft (approve it, or post it by hand like the forum announcement), show its full
+  text in the chat. In a later phase, fill the template again from the current state instead of relying on
+  an earlier draft file.
 - **Release builds use the final OpenSearch version, never a `-SNAPSHOT`.** Between releases, `main`
   (and `v3.6`) build against `X.Y.Z-SNAPSHOT` from the OpenSearch snapshot repository. The release commit
   must have `opensearch_version = X.Y.Z`, resolved from Maven Central, so that the tag holds the source
@@ -345,6 +351,11 @@ gh issue create -R opensearch-project/.github --label github-request \
   --title "[GitHub Request] Create release tag $V for opensearch-prometheus-exporter" --body-file <file>
 ```
 
+The `github-request` label may not stick: in 2.19.7.0, `gh` reported no error, but the issue got only the
+`untriaged` label from a bot (maintainers of this repository likely cannot label issues in `.github`). The
+admins add `github-request` when they triage it, so this does not block the request. Check the labels
+afterwards and tell the user, but do not retry.
+
 Comment on the tracking issue with a link to the request. Then wait: an admin publishes the draft,
 which creates the tag. Phase 4 is done when `gh release view $V` shows it published (`isDraft: false`).
 
@@ -358,6 +369,7 @@ which creates the tag. Phase 4 is done when `gh release view $V` shows it publis
 2. **Fix the release date** in the compatibility matrix, so it matches `publishedAt` (format `Mon DD, YYYY`).
    If it differs, open a small PR (`Fix X.Y.Z.N release date in compatibility matrix`, see #616), against
    `main`, and for a maintenance release also against the branch. Each PR gets its own worktree.
-3. **Forum announcement:** the user posts it by hand. Draft it from [templates/forum-post.md](templates/forum-post.md).
+3. **Forum announcement:** the user posts it by hand. Draft it from [templates/forum-post.md](templates/forum-post.md)
+   and show the title and the full text in the chat, so the user can copy it.
 4. **Tracking issue:** tick the checklist items in the body (`gh issue edit --body-file`), comment with
    the release link, the tag request and the forum post, and close it once everything is ticked.
