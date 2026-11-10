@@ -1,1 +1,6 @@
 http://www.boxever.com/
+# Placeholder URLs in the release skill templates (.claude/skills/release/)
+X\.Y\.Z
+NNNN
+\$V
+(<|%3C)branch(>|%3E)
