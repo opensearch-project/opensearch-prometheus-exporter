@@ -177,6 +177,15 @@
 ---
 "Failed shard query phases are counted":
 
+  # One shard, so the search fails as a whole (400) instead of partially (200). Otherwise the YAML test
+  # framework can randomly give every index two shards, and the shard without the document succeeds.
+  - do:
+      indices.create:
+        index: twitter
+        body:
+          settings:
+            number_of_shards: 1
+
   - do:
       index:
         index:  twitter
