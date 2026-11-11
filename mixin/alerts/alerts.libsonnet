@@ -182,6 +182,24 @@
             },
           },
 
+          // ==========================================
+          // Exporter
+          // ==========================================
+          {
+            alert: 'OpenSearchExporterCollectorFailing',
+            expr: |||
+              opensearch_scrape_success == 0
+            |||,
+            'for': '%(oseExporterCollectorFailing)s' % $._config,
+            labels: {
+              severity: 'warning',
+            },
+            annotations: {
+              summary: 'Exporter fails to collect some metrics',
+              message: 'The {{ $labels.collector }} request sent by the Prometheus exporter on the node {{ $labels.node }} in {{ $labels.cluster }} cluster has been failing for at least %(oseExporterCollectorFailing)s. The metrics it provides are missing; check the node logs for details.' % $._config,
+            },
+          },
+
         ],
       },
     ],

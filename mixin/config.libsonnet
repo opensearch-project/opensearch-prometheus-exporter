@@ -70,5 +70,12 @@
     oseSystemCPUHigh: 90,
     oseProcessCPUHigh: 90,
 
+    // Exporter
+    // ========
+    //
+    // A request the exporter sends to gather metrics (see the `collector` label of opensearch_scrape_success)
+    // keeps failing, so the metrics it provides are missing from the scrapes.
+    oseExporterCollectorFailing: '10m',
+
   },
 }
