@@ -35,6 +35,7 @@ import static org.opensearch.rest.RestRequest.Method.GET;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.opensearch.action.admin.cluster.node.info.NodeInfo;
 import org.opensearch.plugin.prometheus.collector.PrometheusMetricsCatalog;
 import org.opensearch.plugin.prometheus.collector.PrometheusMetricsCollector;
 import org.opensearch.plugin.prometheus.collector.PrometheusSettings;
@@ -152,6 +153,9 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
                                     response.getIndicesStats(), response.getClusterStatsData());
+                            NodeInfo localNodeInfo = response.getLocalNodesInfoResponse().getNodes().get(0);
+                            collector.updateVersionMetrics(nodeName, nodeId, response.getClusterUUID(),
+                                    localNodeInfo.getVersion(), localNodeInfo.getBuild());
                             textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing

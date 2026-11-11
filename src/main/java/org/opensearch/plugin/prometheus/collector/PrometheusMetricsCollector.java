@@ -32,6 +32,8 @@ package org.opensearch.plugin.prometheus.collector;
 
 import org.opensearch.plugin.prometheus.action.ClusterStatsData;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
+import org.opensearch.Build;
+import org.opensearch.Version;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.indices.stats.CommonStats;
 import org.opensearch.action.admin.indices.stats.IndexStats;
@@ -110,6 +112,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerSearchBackpressureMetrics();
+        registerVersionMetrics();
         registerESSettings();
     }
 
@@ -1025,6 +1028,32 @@ public class PrometheusMetricsCollector {
         if (value instanceof Number number) {
             catalog.setNodeGauge(nodeInfo, metric, number.doubleValue(), labelValues);
         }
+    }
+
+    private void registerVersionMetrics() {
+        catalog.registerNodeGauge("version_info",
+                "Constant 1, labelled with the version and build of the node that served the scrape (as returned by GET /)",
+                "cluster_uuid", "version", "distribution", "build_type", "build_hash", "build_date", "lucene_version");
+    }
+
+    /**
+     * Update the version metric of the originating node, which is the node that served the scrape. The labels carry
+     * the same values as the {@code GET /} API of that node.
+     *
+     * @param originNodeName Originating node name.
+     * @param originNodeId   Originating node ID.
+     * @param clusterUUID    Cluster UUID as known by the originating node.
+     * @param version        Version of the originating node.
+     * @param build          Build of the originating node.
+     */
+    public void updateVersionMetrics(String originNodeName, String originNodeId, String clusterUUID,
+                                     @Nullable Version version, @Nullable Build build) {
+        if (version == null || build == null) {
+            return;
+        }
+        catalog.setNodeGauge(new Tuple<>(originNodeName, originNodeId), "version_info", 1,
+                clusterUUID, build.getQualifiedVersion(), build.getDistribution(), build.type().displayName(),
+                build.hash(), build.date(), version.luceneVersion.toString());
     }
 
     @SuppressWarnings("checkstyle:LineLength")
