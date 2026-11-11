@@ -1036,8 +1036,6 @@ public class PrometheusMetricsCollector {
                 "Total memory used by indexing requests since node start, by indexing stage", "stage");
         catalog.registerNodeGauge("indexing_pressure_memory_rejections_count",
                 "Count of indexing requests rejected due to indexing pressure, by indexing stage", "stage");
-        catalog.registerNodeGauge("indexing_pressure_memory_limit_bytes",
-                "Configured memory limit for indexing requests (indexing_pressure.memory.limit)");
     }
 
     private void updateIndexingPressureMetrics(Tuple<String, String> nodeInfo, @Nullable IndexingPressureStats stats) {
@@ -1068,21 +1066,6 @@ public class PrometheusMetricsCollector {
         catalog.setNodeGauge(nodeInfo, rejections, stats.getCoordinatingRejections(), "coordinating");
         catalog.setNodeGauge(nodeInfo, rejections, stats.getPrimaryRejections(), "primary");
         catalog.setNodeGauge(nodeInfo, rejections, stats.getReplicaRejections(), "replica");
-
-        // IndexingPressureStats has no getter for the memory limit; use its Nodes Stats API representation.
-        Map<?, ?> memory;
-        try {
-            BytesReference content = org.opensearch.core.xcontent.XContentHelper.toXContent(
-                    stats, MediaTypeRegistry.JSON, ToXContent.EMPTY_PARAMS, false);
-            Map<?, ?> indexingPressure = asMap(XContentHelper.convertToMap(content, false, MediaTypeRegistry.JSON)
-                    .v2().get("indexing_pressure"));
-            memory = indexingPressure == null ? null : asMap(indexingPressure.get("memory"));
-        } catch (IOException e) {
-            throw new IllegalStateException("Failed to serialize indexing pressure stats for node " + nodeInfo.v2(), e);
-        }
-        if (memory != null) {
-            setNodeGaugeIfNumber(nodeInfo, "indexing_pressure_memory_limit_bytes", memory.get("limit_in_bytes"));
-        }
     }
 
     @SuppressWarnings("checkstyle:LineLength")

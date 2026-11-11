@@ -28,8 +28,6 @@ teardown:
       prometheus.metrics: {}
 
   - match:
-      $body: /.*opensearch_indexing_pressure_memory_limit_bytes\{[^}]*\}\s[0-9.E+]+\n.*/
-  - match:
       $body: /.*opensearch_indexing_pressure_memory_current_bytes\{[^}]*stage="all"[^}]*\}\s[0-9.E+]+\n.*/
   - match:
       $body: /.*opensearch_indexing_pressure_memory_current_bytes\{[^}]*stage="replica"[^}]*\}\s[0-9.E+]+\n.*/

@@ -90,7 +90,6 @@ cumulative values and reset when the node restarts.
 | `opensearch_indexing_pressure_memory_current_bytes` | `stage` | Memory currently used by indexing requests, in bytes |
 | `opensearch_indexing_pressure_memory_total_bytes` | `stage` | Memory used by indexing requests since the node started, in bytes |
 | `opensearch_indexing_pressure_memory_rejections_count` | `stage` | Indexing requests rejected because of indexing pressure |
-| `opensearch_indexing_pressure_memory_limit_bytes` | | Configured memory limit (`indexing_pressure.memory.limit`), in bytes |
 
 Every metric also has the standard `cluster`, `node`, and `nodeid` labels. The `stage`
 label is `coordinating`, `primary`, or `replica`; the byte metrics also report
@@ -98,13 +97,8 @@ label is `coordinating`, `primary`, or `replica`; the byte metrics also report
 and primary for a request) and `all` (`combined_coordinating_and_primary` plus `replica`),
 matching the Nodes Stats API. The stages overlap, so do not sum across them. A node
 rejects new coordinating and primary work when `combined_coordinating_and_primary`
-reaches the limit, and replica work when `replica` reaches 1.5 times the limit, so the
-following expression gives how close each node is to rejecting requests:
-
-```
-opensearch_indexing_pressure_memory_current_bytes{stage="combined_coordinating_and_primary"}
-  / ignoring(stage) opensearch_indexing_pressure_memory_limit_bytes
-```
+reaches `indexing_pressure.memory.limit`, and replica work when `replica` reaches 1.5
+times that limit.
 
 No additional exporter configuration is required.
 

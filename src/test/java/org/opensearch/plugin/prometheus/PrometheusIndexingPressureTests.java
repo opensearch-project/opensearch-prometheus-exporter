@@ -31,7 +31,7 @@ public class PrometheusIndexingPressureTests extends OpenSearchTestCase {
     private static final String PREFIX = "opensearch_indexing_pressure_memory_";
 
     public void testCurrentBytes() throws IOException {
-        String text = collect(node("node-1", stats(1L)));
+        String text = collect(node("node-1", stats(20L)));
         assertSample(text, "current_bytes", 20, "stage", "coordinating");
         assertSample(text, "current_bytes", 30, "stage", "primary");
         assertSample(text, "current_bytes", 40, "stage", "replica");
@@ -41,7 +41,7 @@ public class PrometheusIndexingPressureTests extends OpenSearchTestCase {
     }
 
     public void testTotalBytes() throws IOException {
-        String text = collect(node("node-1", stats(1L)));
+        String text = collect(node("node-1", stats(20L)));
         assertSample(text, "total_bytes", 2000, "stage", "coordinating");
         assertSample(text, "total_bytes", 3000, "stage", "primary");
         assertSample(text, "total_bytes", 4000, "stage", "replica");
@@ -51,18 +51,11 @@ public class PrometheusIndexingPressureTests extends OpenSearchTestCase {
     }
 
     public void testRejections() throws IOException {
-        String text = collect(node("node-1", stats(1L)));
+        String text = collect(node("node-1", stats(20L)));
         assertSample(text, "rejections_count", 5, "stage", "coordinating");
         assertSample(text, "rejections_count", 6, "stage", "primary");
         assertSample(text, "rejections_count", 7, "stage", "replica");
         assertEquals(3, samples(text, PREFIX + "rejections_count{").size());
-    }
-
-    public void testLimit() throws IOException {
-        long limit = 858_993_459L;
-        String text = collect(node("node-1", stats(limit)));
-        assertSample(text, "limit_bytes", limit);
-        assertEquals(1, samples(text, PREFIX + "limit_bytes{").size());
     }
 
     public void testAbsentStatsAreOmitted() throws IOException {
@@ -73,8 +66,8 @@ public class PrometheusIndexingPressureTests extends OpenSearchTestCase {
 
     public void testMetricsKeepNodeIdentity() throws IOException {
         String text = collect(node("node-1", stats(100L)), node("node-2", stats(200L)));
-        assertSample(text, "limit_bytes", 100, "nodeid", "node-1");
-        assertSample(text, "limit_bytes", 200, "nodeid", "node-2");
+        assertSample(text, "current_bytes", 100, "nodeid", "node-1", "stage", "coordinating");
+        assertSample(text, "current_bytes", 200, "nodeid", "node-2", "stage", "coordinating");
         for (String sample : samples(text, PREFIX)) {
             assertTrue(sample, sample.contains("cluster=\"test-cluster\""));
             assertTrue(sample, sample.contains("node=\"test-node-"));
@@ -83,16 +76,16 @@ public class PrometheusIndexingPressureTests extends OpenSearchTestCase {
 
     public void testExistingMetricValuesAreUnchanged() throws IOException {
         String before = collect(node("node-1", null));
-        String after = collect(node("node-1", stats(1L)));
+        String after = collect(node("node-1", stats(20L)));
         Set<String> expected = existingSamples(before);
         assertFalse(expected.isEmpty());
         assertEquals(expected, existingSamples(after));
     }
 
-    private static IndexingPressureStats stats(long limit) {
+    private static IndexingPressureStats stats(long currentCoordinatingBytes) {
         return new IndexingPressureStats.Builder()
                 .currentCombinedCoordinatingAndPrimaryBytes(10)
-                .currentCoordinatingBytes(20)
+                .currentCoordinatingBytes(currentCoordinatingBytes)
                 .currentPrimaryBytes(30)
                 .currentReplicaBytes(40)
                 .totalCombinedCoordinatingAndPrimaryBytes(1000)
@@ -102,7 +95,6 @@ public class PrometheusIndexingPressureTests extends OpenSearchTestCase {
                 .coordinatingRejections(5)
                 .primaryRejections(6)
                 .replicaRejections(7)
-                .memoryLimit(limit)
                 .build();
     }
 
