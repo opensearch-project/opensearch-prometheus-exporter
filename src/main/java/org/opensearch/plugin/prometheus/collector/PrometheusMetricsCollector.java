@@ -924,7 +924,8 @@ public class PrometheusMetricsCollector {
     }
 
     private void registerSearchBackpressureMetrics() {
-        catalog.registerNodeGauge("search_backpressure_mode_bool", "Search backpressure mode", "mode");
+        catalog.registerNodeGauge("search_backpressure_mode_bool",
+                "Search backpressure mode: 1 for the active mode, 0 for the others (disabled, monitor_only, enforced)", "mode");
         catalog.registerNodeGauge("search_backpressure_completion_count", "Search backpressure task completions", "task");
         catalog.registerNodeGauge("search_backpressure_cancellation_count", "Search backpressure cancellations", "task");
         catalog.registerNodeGauge("search_backpressure_cancellation_limit_reached_count",

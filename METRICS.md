@@ -358,7 +358,7 @@ Every metric has the `cluster` label. Metrics with the **node** scope also have 
 
 | Metric | Type | Scope | Labels | Description |
 | --- | --- | --- | --- | --- |
-| `opensearch_search_backpressure_mode_bool` | gauge | node | `mode` | Search backpressure mode |
+| `opensearch_search_backpressure_mode_bool` | gauge | node | `mode` | Search backpressure mode: 1 for the active mode, 0 for the others (disabled, monitor_only, enforced) |
 | `opensearch_search_backpressure_completion_count` | gauge | node | `task` | Search backpressure task completions |
 | `opensearch_search_backpressure_cancellation_count` | gauge | node | `task` | Search backpressure cancellations |
 | `opensearch_search_backpressure_cancellation_limit_reached_count` | gauge | node | `task` | Search backpressure cancellation limit reached count |
