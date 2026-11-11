@@ -268,12 +268,6 @@ public class PrometheusMetricsCatalog {
     }
 
     /**
-     * Returns all the metrics from the catalog formatted in UTF-8 plain/text.
-     * More specifically as {@link TextFormat#CONTENT_TYPE_004}.
-     * @return Text representation of the metric from the catalog
-     * @throws IOException If creating the text representation goes wrong
-     */
-    /**
      * Description of a registered metric, used to generate the metrics documentation.
      *
      * @param name   full metric name, including the metric prefix
@@ -283,7 +277,7 @@ public class PrometheusMetricsCatalog {
      */
     public record MetricDescription(String name, String type, String help, List<String> labels) {}
 
-    private void describe(String metric, String type, String help, String[] labelNames) {
+    private void describe(final String metric, final String type, final String help, final String[] labelNames) {
         descriptions.add(new MetricDescription(metricPrefix + metric, type, help, List.copyOf(Arrays.asList(labelNames))));
     }
 
@@ -295,6 +289,12 @@ public class PrometheusMetricsCatalog {
         return Collections.unmodifiableList(descriptions);
     }
 
+    /**
+     * Returns all the metrics from the catalog formatted in UTF-8 plain/text.
+     * More specifically as {@link TextFormat#CONTENT_TYPE_004}.
+     * @return Text representation of the metric from the catalog
+     * @throws IOException If creating the text representation goes wrong
+     */
     public String toTextFormat() throws IOException {
         Writer writer = new StringWriter();
         TextFormat.write004(writer, registry.metricFamilySamples());

@@ -30,22 +30,9 @@ This repository contains two projects that are related, but each can be used ind
 
 This plugin was started as a fork of the Prometheus exporter for Elasticsearch® by @vvanholl (it was forked in version 7.10.2.0; commit hash: 8dc7f85) utilizing [OpenSearch plugin template](https://github.com/opensearch-project/opensearch-plugin-template-java). It uses the official [Prometheus Java Simpleclient](https://github.com/prometheus/client_java/tree/simpleclient).
 
-**Currently, the available metrics are** (see [METRICS.md](METRICS.md) for the full list of metrics with their labels and descriptions)**:**
+See [METRICS.md](METRICS.md) for the full list of exposed metrics with their labels and descriptions. It is generated from the code, so it is always up to date.
 
-- Cluster status
-- Nodes status:
-    - JVM
-    - Indices (global)
-    - Transport
-    - HTTP
-    - Scripts
-    - Process
-    - Operating System
-    - File System
-    - Circuit Breaker
-    - Search Backpressure
-- Indices status
-- Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
+The cluster settings metrics include the [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings), which can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable`, exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`.
 
 ### Search backpressure metrics
 

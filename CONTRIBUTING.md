@@ -56,7 +56,7 @@ As with other types of contributions, the first step is to [open an issue on Git
 
 If your change adds, removes or renames a metric, or changes its labels or help text, regenerate the
 [list of metrics](METRICS.md) with `./gradlew updateMetricsDoc` and commit the result. `./gradlew check`
-fails when `METRICS.md` is out of date.
+(and therefore `./gradlew build`, and the CI) fails when `METRICS.md` is out of date.
 
 ## Developer Certificate of Origin
 
