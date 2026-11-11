@@ -1,0 +1,16 @@
+---
+"Exporter build info reports the installed plugin version":
+  - do:
+      cat.plugins:
+        format: json
+
+  - match: { 0.component: "prometheus-exporter" }
+  - set: { 0.version: plugin_version }
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*\#\sTYPE\sopensearch_exporter_build_info\sgauge\n.*/
+  - match:
+      $body: /.*opensearch_exporter_build_info\{cluster="yamlRestTest",node="[^"]+",nodeid="[^"]+",version="${plugin_version}",revision="([0-9a-f]{40}|unknown)",java_version="[^"]+",\}\s1\.0\n.*/
