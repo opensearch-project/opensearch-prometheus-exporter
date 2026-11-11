@@ -1,0 +1,24 @@
+---
+"Indexing pressure metrics are exposed":
+  - do:
+      index:
+        index: indexing-pressure-test
+        id: "1"
+        refresh: true
+        body: { "foo": "bar" }
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*opensearch_indexing_pressure_memory_limit_bytes\{[^}]*\}\s[0-9.E+]+\n.*/
+  - match:
+      $body: /.*opensearch_indexing_pressure_memory_current_bytes\{[^}]*stage="all"[^}]*\}\s[0-9.E+]+\n.*/
+  - match:
+      $body: /.*opensearch_indexing_pressure_memory_current_bytes\{[^}]*stage="replica"[^}]*\}\s[0-9.E+]+\n.*/
+  - match:
+      $body: /.*opensearch_indexing_pressure_memory_total_bytes\{[^}]*stage="coordinating"[^}]*\}\s[0-9.E+]+\n.*/
+  - match:
+      $body: /.*opensearch_indexing_pressure_memory_total_bytes\{[^}]*stage="primary"[^}]*\}\s[1-9][0-9.E+]*\n.*/
+  - match:
+      $body: /.*opensearch_indexing_pressure_memory_rejections_count\{[^}]*stage="coordinating"[^}]*\}\s[0-9.E+]+\n.*/

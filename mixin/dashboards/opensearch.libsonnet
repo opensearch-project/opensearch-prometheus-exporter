@@ -400,6 +400,49 @@ local throttlingMergingPanel =
   + { gridPos: { w: 12, h: 8 } };
 
 // ==========================================
+// Indexing Pressure Row Panels
+// ==========================================
+local indexingPressureMemoryPanel =
+  panel.timeSeries.new('Indexing pressure memory')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_indexing_pressure_memory_current_bytes{cluster="$cluster", node=~"$node", stage=~"combined_coordinating_and_primary|replica"}', '{{node}} - {{stage}}'),
+    promQuery('opensearch_indexing_pressure_memory_limit_bytes{cluster="$cluster", node=~"$node"}', '{{node}} - limit'),
+  ])
+  + panel.timeSeries.standardOptions.withUnit('bytes')
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+local indexingPressureUsagePanel =
+  panel.timeSeries.new('Indexing pressure memory usage')
+  + timeSeriesBase
+  + panel.timeSeries.panelOptions.withDescription('Coordinating and primary memory as a share of the limit. Requests are rejected once it reaches 100%.')
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('opensearch_indexing_pressure_memory_current_bytes{cluster="$cluster", node=~"$node", stage="combined_coordinating_and_primary"} / ignoring(stage) opensearch_indexing_pressure_memory_limit_bytes{cluster="$cluster", node=~"$node"}', '{{node}}'),
+  ])
+  + panel.timeSeries.standardOptions.withUnit('percentunit')
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+local indexingPressureRejectionsPanel =
+  panel.timeSeries.new('Indexing pressure rejections')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('rate(opensearch_indexing_pressure_memory_rejections_count{cluster="$cluster", node=~"$node"}[$interval])', '{{node}} - {{stage}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 8, h: 8 } };
+
+// ==========================================
 // JVM Row Panels
 // ==========================================
 local jvmHeapUsedPanel =
@@ -449,6 +492,7 @@ local systemRow = panel.row.new('System');
 local docsAndLatenciesRow = panel.row.new('Documents and Latencies');
 local cachesRow = panel.row.new('Caches');
 local throttlingRow = panel.row.new('Throttling');
+local indexingPressureRow = panel.row.new('Indexing pressure');
 local jvmRow = panel.row.new('JVM');
 
 // ==========================================
@@ -510,6 +554,12 @@ local jvmRow = panel.row.new('JVM');
           throttlingRow,
           throttlingIndexingPanel,
           throttlingMergingPanel,
+
+          // Indexing pressure row
+          indexingPressureRow,
+          indexingPressureMemoryPanel,
+          indexingPressureUsagePanel,
+          indexingPressureRejectionsPanel,
 
           // JVM row
           jvmRow,

@@ -45,6 +45,7 @@ import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.xcontent.MediaTypeRegistry;
 import org.opensearch.core.xcontent.ToXContent;
 import org.opensearch.http.HttpStats;
+import org.opensearch.index.stats.IndexingPressureStats;
 import org.opensearch.indices.NodeIndicesStats;
 import org.opensearch.core.indices.breaker.AllCircuitBreakerStats;
 import org.opensearch.core.indices.breaker.CircuitBreakerStats;
@@ -110,6 +111,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerSearchBackpressureMetrics();
+        registerIndexingPressureMetrics();
         registerESSettings();
     }
 
@@ -1027,6 +1029,62 @@ public class PrometheusMetricsCollector {
         }
     }
 
+    private void registerIndexingPressureMetrics() {
+        catalog.registerNodeGauge("indexing_pressure_memory_current_bytes",
+                "Memory currently used by indexing requests, by indexing stage", "stage");
+        catalog.registerNodeGauge("indexing_pressure_memory_total_bytes",
+                "Total memory used by indexing requests since node start, by indexing stage", "stage");
+        catalog.registerNodeGauge("indexing_pressure_memory_rejections_count",
+                "Count of indexing requests rejected due to indexing pressure, by indexing stage", "stage");
+        catalog.registerNodeGauge("indexing_pressure_memory_limit_bytes",
+                "Configured memory limit for indexing requests (indexing_pressure.memory.limit)");
+    }
+
+    private void updateIndexingPressureMetrics(Tuple<String, String> nodeInfo, @Nullable IndexingPressureStats stats) {
+        if (stats == null) {
+            return;
+        }
+
+        long currentCombined = stats.getCurrentCombinedCoordinatingAndPrimaryBytes();
+        long currentReplica = stats.getCurrentReplicaBytes();
+        String current = "indexing_pressure_memory_current_bytes";
+        catalog.setNodeGauge(nodeInfo, current, stats.getCurrentCoordinatingBytes(), "coordinating");
+        catalog.setNodeGauge(nodeInfo, current, stats.getCurrentPrimaryBytes(), "primary");
+        catalog.setNodeGauge(nodeInfo, current, currentReplica, "replica");
+        catalog.setNodeGauge(nodeInfo, current, currentCombined, "combined_coordinating_and_primary");
+        // "all" mirrors the Nodes Stats API, which reports replica + combined coordinating and primary.
+        catalog.setNodeGauge(nodeInfo, current, currentCombined + currentReplica, "all");
+
+        long totalCombined = stats.getTotalCombinedCoordinatingAndPrimaryBytes();
+        long totalReplica = stats.getTotalReplicaBytes();
+        String total = "indexing_pressure_memory_total_bytes";
+        catalog.setNodeGauge(nodeInfo, total, stats.getTotalCoordinatingBytes(), "coordinating");
+        catalog.setNodeGauge(nodeInfo, total, stats.getTotalPrimaryBytes(), "primary");
+        catalog.setNodeGauge(nodeInfo, total, totalReplica, "replica");
+        catalog.setNodeGauge(nodeInfo, total, totalCombined, "combined_coordinating_and_primary");
+        catalog.setNodeGauge(nodeInfo, total, totalCombined + totalReplica, "all");
+
+        String rejections = "indexing_pressure_memory_rejections_count";
+        catalog.setNodeGauge(nodeInfo, rejections, stats.getCoordinatingRejections(), "coordinating");
+        catalog.setNodeGauge(nodeInfo, rejections, stats.getPrimaryRejections(), "primary");
+        catalog.setNodeGauge(nodeInfo, rejections, stats.getReplicaRejections(), "replica");
+
+        // IndexingPressureStats has no getter for the memory limit; use its Nodes Stats API representation.
+        Map<?, ?> memory;
+        try {
+            BytesReference content = org.opensearch.core.xcontent.XContentHelper.toXContent(
+                    stats, MediaTypeRegistry.JSON, ToXContent.EMPTY_PARAMS, false);
+            Map<?, ?> indexingPressure = asMap(XContentHelper.convertToMap(content, false, MediaTypeRegistry.JSON)
+                    .v2().get("indexing_pressure"));
+            memory = indexingPressure == null ? null : asMap(indexingPressure.get("memory"));
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to serialize indexing pressure stats for node " + nodeInfo.v2(), e);
+        }
+        if (memory != null) {
+            setNodeGaugeIfNumber(nodeInfo, "indexing_pressure_memory_limit_bytes", memory.get("limit_in_bytes"));
+        }
+    }
+
     @SuppressWarnings("checkstyle:LineLength")
     private void registerESSettings() {
         catalog.registerClusterGauge("cluster_routing_allocation_disk_threshold_enabled", "Disk allocation decider is enabled");
@@ -1105,6 +1163,7 @@ public class PrometheusMetricsCollector {
             updateOsMetrics(nodeInfo, s.getOs());
             updateFsMetrics(nodeInfo, s.getFs());
             updateSearchBackpressureMetrics(nodeInfo, s.getSearchBackpressureStats());
+            updateIndexingPressureMetrics(nodeInfo, s.getIndexingPressureStats());
         }
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
