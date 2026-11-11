@@ -43,6 +43,7 @@ import org.opensearch.action.admin.cluster.node.stats.NodesStatsRequest;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
+import org.opensearch.action.admin.indices.stats.CommonStatsFlags;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.ActionFilters;
@@ -56,6 +57,9 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  * Transport action class for Prometheus Exporter plugin.
@@ -95,7 +99,20 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
     @Override
     protected void doExecute(Task task, NodePrometheusMetricsRequest request,
                              ActionListener<NodePrometheusMetricsResponse> listener) {
-        new AsyncAction(listener).start();
+        new AsyncAction(request, listener).start();
+    }
+
+    /**
+     * Cluster health computed only to the level the metrics read: per-index metrics need index-level detail, never shards.
+     * @param perIndex whether per-index metrics are collected
+     * @return the health request
+     */
+    static ClusterHealthRequest healthRequest(boolean perIndex) {
+        ClusterHealthRequest request = Requests.clusterHealthRequest().local(true);
+        request.level(perIndex ? ClusterHealthRequest.Level.INDICES : ClusterHealthRequest.Level.CLUSTER);
+        // Without this, level() only shapes the REST output and health is computed for every shard.
+        request.setApplyLevelAtTransportLayer(true);
+        return request;
     }
 
     private class AsyncAction {
@@ -114,10 +131,12 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
 
-        // read the state of prometheus dynamic settings only once at the beginning of the async request
-        private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
-        private final boolean isPrometheusClusterSettings = prometheusSettings.getPrometheusClusterSettings();
-        private final String prometheusNodesFilter = prometheusSettings.getNodesFilter();
+        // Read the state of prometheus dynamic settings only once at the beginning of the async request.
+        // Request include can only narrow what the settings enable; request indices replaces the configured filter.
+        private final boolean isPrometheusIndices;
+        private final boolean isPrometheusClusterSettings;
+        private final boolean isNodesStats;
+        private final boolean isClusterHealth;
 
         // All the requests are executed in sequential non-blocking order.
         // It is implemented by wrapping each individual request with ActionListener
@@ -129,24 +148,43 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         // however, some requests can impact cluster performance (especially if the cluster is already overloaded),
         // and in this situation it is better to execute all requests in predictable order so that collected metrics
         // stay consistent.
-        private AsyncAction(ActionListener<NodePrometheusMetricsResponse> listener) {
+        private AsyncAction(NodePrometheusMetricsRequest request, ActionListener<NodePrometheusMetricsResponse> listener) {
             this.listener = listener;
+            this.isPrometheusIndices = prometheusSettings.getPrometheusIndices() && request.includes("indices_stats");
+            this.isPrometheusClusterSettings = prometheusSettings.getPrometheusClusterSettings() && request.includes("cluster_settings");
+            this.isNodesStats = request.includes("nodes_stats");
+            // Per-index metrics need health too, for index status and shard counts.
+            this.isClusterHealth = request.includes("cluster_health") || isPrometheusIndices;
 
-            // Do not rely on ClusterHealthRequest defaults and set an explicit level of information.
-            this.healthRequest = Requests.clusterHealthRequest().local(true);
-            this.healthRequest.level(ClusterHealthRequest.Level.SHARDS);
+            this.healthRequest = healthRequest(isPrometheusIndices);
 
             // We want to get only the most minimal static info from the local node (cluster name, node name and nodeID).
             this.localNodesInfoRequest = Requests.nodesInfoRequest("_local").clear();
 
-            this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
+            // Request only the sections the collector reads; all() also computes many it ignores.
+            List<String> nodesStatsMetrics = request.nodesStatsMetrics();
+            this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusSettings.getNodesFilter()).clear()
+                    .indices(nodesStatsMetrics.contains("indices"));
+            for (String metric : nodesStatsMetrics) {
+                if (!metric.equals("indices")) {
+                    nodesStatsRequest.addMetric(metric);
+                }
+            }
 
             // Indices stats request is not "node-specific", it does not support any "_local" notion
             // it is broad-casted to all cluster nodes.
             if (isPrometheusIndices) {
                 IndicesStatsRequest indicesStatsRequest = new IndicesStatsRequest();
-                indicesStatsRequest.indices(prometheusSettings.getPrometheusSelectedIndices());
+                indicesStatsRequest.indices(request.indices() != null
+                        ? request.indices() : prometheusSettings.getPrometheusSelectedIndices());
                 indicesStatsRequest.indicesOptions(prometheusSettings.getIndicesOptions());
+                if (request.indicesStatsMetrics() != null) {
+                    CommonStatsFlags flags = new CommonStatsFlags().clear();
+                    for (CommonStatsFlags.Flag flag : CommonStatsFlags.Flag.values()) {
+                        flags.set(flag, Arrays.asList(request.indicesStatsMetrics()).contains(flag.getRestName()));
+                    }
+                    indicesStatsRequest.flags(flags);
+                }
                 this.indicesStatsRequest = indicesStatsRequest;
             } else {
                 this.indicesStatsRequest = null;
@@ -217,7 +255,11 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(NodesInfoResponse nodesInfoResponse) {
                     localNodesInfoResponse = nodesInfoResponse;
-                    client.admin().cluster().nodesStats(nodesStatsRequest, nodesStatsResponseActionListener);
+                    if (isNodesStats) {
+                        client.admin().cluster().nodesStats(nodesStatsRequest, nodesStatsResponseActionListener);
+                    } else {
+                        nodesStatsResponseActionListener.onResponse(null);
+                    }
                 }
 
                 @Override
@@ -241,18 +283,22 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
             };
 
         private void start() {
-            client.admin().cluster().health(healthRequest, clusterHealthResponseActionListener);
+            if (isClusterHealth) {
+                client.admin().cluster().health(healthRequest, clusterHealthResponseActionListener);
+            } else {
+                clusterHealthResponseActionListener.onResponse(null);
+            }
         }
 
-        protected NodePrometheusMetricsResponse buildResponse(ClusterHealthResponse clusterHealth,
+        protected NodePrometheusMetricsResponse buildResponse(@Nullable ClusterHealthResponse clusterHealth,
                                                               NodesInfoResponse localNodesInfoResponse,
-                                                              NodesStatsResponse nodesStats,
+                                                              @Nullable NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
                                                               @Nullable ClusterStateResponse clusterStateResponse) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
-                    nodesStats.getNodes().toArray(new NodeStats[0]),
+                    nodesStats == null ? new NodeStats[0] : nodesStats.getNodes().toArray(new NodeStats[0]),
                     indicesStats, clusterStateResponse,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {

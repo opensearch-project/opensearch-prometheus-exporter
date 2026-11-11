@@ -242,6 +242,51 @@ Of course, you could use the service discovery service instead of a static confi
 
 Just keep in mind that `metrics_path` must be `/_prometheus/metrics`, otherwise Prometheus will find no metric.
 
+### Collect a subset of metrics
+
+URL parameters limit what a single request collects, so OpenSearch only does the work for the metrics you need.
+Each parameter takes a comma-separated list. Omitted parameters keep the default behavior.
+`include` can only narrow what the [dynamic settings](#dynamic-settings) enable: if `prometheus.indices` is `false`,
+`include=indices_stats` still returns no index level metrics.
+
+| Parameter               | Values                                                                                                                                                                             |
+|-------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `include`               | `cluster_health`, `nodes_stats`, `indices_stats`, `cluster_settings`, `action_metrics`                                                                                             |
+| `nodes_stats_metrics`   | `indices`, `os`, `process`, `jvm`, `thread_pool`, `fs`, `transport`, `http`, `breaker`, `script`, `ingest`                                                                         |
+| `indices_stats_metrics` | `store`, `indexing`, `get`, `search`, `merge`, `flush`, `refresh`, `query_cache`, `fielddata`, `docs`, `warmer`, `completion`, `segments`, `translog`, `request_cache`, `recovery` |
+| `indices`               | Index names or patterns, overrides `prometheus.indices_filter.selected_indices`                                                                                                    |
+
+Unknown values are rejected with `400 Bad Request`.
+`nodes_stats_metrics` and `indices_stats_metrics` have no effect when `include` omits `nodes_stats` or `indices_stats`.
+`indices` replaces the configured indices filter, which limits scope and is not an access control.
+It is resolved with `prometheus.indices_filter.selected_option`. With the default strict option, a listed index that
+does not exist fails the whole scrape; use wildcard patterns or a `LENIENT_*` option for indices that may be missing.
+When splitting scrapes across jobs, include `action_metrics` in only one of them so those counters are not exported twice.
+
+This lets you split collection across Prometheus jobs with different intervals.
+Pass each list as one comma-separated string: OpenSearch keeps only the last value of a repeated query parameter,
+and Prometheus sends every `params` list item as a separate parameter.
+
+```YAML
+- job_name: opensearch-nodes
+  scrape_interval: 15s
+  metrics_path: "/_prometheus/metrics"
+  params:
+    include: ["cluster_health,nodes_stats,action_metrics"]
+    nodes_stats_metrics: ["jvm,os,thread_pool"]
+  static_configs:
+  - targets: [node1:9200]
+- job_name: opensearch-indices
+  scrape_interval: 5m
+  metrics_path: "/_prometheus/metrics"
+  params:
+    include: ["indices_stats"]
+    indices_stats_metrics: ["docs,store"]
+    indices: ["logs-*"]
+  static_configs:
+  - targets: [node1:9200]
+```
+
 ## Build from Source
 
 To build the plugin you need JDK 17:
