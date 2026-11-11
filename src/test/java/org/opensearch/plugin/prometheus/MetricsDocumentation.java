@@ -21,6 +21,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -122,14 +123,19 @@ public final class MetricsDocumentation {
         }
 
         // The action filter keeps its own registry; its label names are taken from its (pre-created) samples.
+        // The registry returns metric families in hash order of the collector objects, which differs between JVM runs,
+        // so sort them by name to keep the generated file stable.
         PrometheusActionFilter actionFilter = new PrometheusActionFilter(PREFIX);
+        List<Metric> actionMetrics = new ArrayList<>();
         for (Collector.MetricFamilySamples family : Collections.list(actionFilter.metricFamilySamples("c", "n", "id"))) {
             Set<String> labels = new LinkedHashSet<>();
             family.samples.forEach(sample -> labels.addAll(sample.labelNames));
             labels.remove("le");
             String name = family.type == Collector.Type.COUNTER ? family.name + "_total" : family.name;
-            metrics.add(new Metric(name, family.type.name().toLowerCase(Locale.ROOT), family.help, List.copyOf(labels)));
+            actionMetrics.add(new Metric(name, family.type.name().toLowerCase(Locale.ROOT), family.help, List.copyOf(labels)));
         }
+        actionMetrics.sort(Comparator.comparing(Metric::name));
+        metrics.addAll(actionMetrics);
         return metrics;
     }
 
