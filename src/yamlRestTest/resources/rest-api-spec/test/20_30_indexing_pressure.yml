@@ -1,5 +1,22 @@
 ---
+teardown:
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.nodes.filter: null
+
+---
 "Indexing pressure metrics are exposed":
+  # The test cluster has several nodes and the primary shard can live on any of them, so collect
+  # stats from all nodes rather than only the node that serves the scrape.
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.nodes.filter: "_all"
+        flat_settings: true
+
   - do:
       index:
         index: indexing-pressure-test
@@ -17,7 +34,8 @@
   - match:
       $body: /.*opensearch_indexing_pressure_memory_current_bytes\{[^}]*stage="replica"[^}]*\}\s[0-9.E+]+\n.*/
   - match:
-      $body: /.*opensearch_indexing_pressure_memory_total_bytes\{[^}]*stage="coordinating"[^}]*\}\s[0-9.E+]+\n.*/
+      $body: /.*opensearch_indexing_pressure_memory_total_bytes\{[^}]*stage="coordinating"[^}]*\}\s[1-9][0-9.E+]*\n.*/
+  # The node holding the primary shard has accounted the indexed document.
   - match:
       $body: /.*opensearch_indexing_pressure_memory_total_bytes\{[^}]*stage="primary"[^}]*\}\s[1-9][0-9.E+]*\n.*/
   - match:
