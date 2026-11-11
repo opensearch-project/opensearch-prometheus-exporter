@@ -14,3 +14,4 @@ This document contains a list of maintainers in this repo. See [opensearch-proje
 | Samuel Herman     | [sam-herman](https://github.com/sam-herman)             | Datastax    |
 | Shenoy Pratik     | [ps48](https://github.com/ps48)                         | Amazon      |
 | Ritvi Bhatt       | [ritvibhatt](https://github.com/ritvibhatt)             | Amazon      |
+| Ralph Ursprung    | [rursprung](https://github.com/rursprung)               | Avaloq      |
