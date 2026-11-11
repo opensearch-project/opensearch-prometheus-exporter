@@ -30,7 +30,7 @@ This repository contains two projects that are related, but each can be used ind
 
 This plugin was started as a fork of the Prometheus exporter for Elasticsearch® by @vvanholl (it was forked in version 7.10.2.0; commit hash: 8dc7f85) utilizing [OpenSearch plugin template](https://github.com/opensearch-project/opensearch-plugin-template-java). It uses the official [Prometheus Java Simpleclient](https://github.com/prometheus/client_java/tree/simpleclient).
 
-**Currently, the available metrics are:**
+**Currently, the available metrics are** (see [METRICS.md](METRICS.md) for the full list of metrics with their labels and descriptions)**:**
 
 - Cluster status
 - Nodes status:

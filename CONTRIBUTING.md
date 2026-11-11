@@ -54,6 +54,10 @@ User documentation is maintained in the [documentation-website](https://github.c
 
 As with other types of contributions, the first step is to [open an issue on GitHub](https://github.com/opensearch-project/.github/issues/new/choose). Opening an issue before you make changes makes sure that someone else isn't already working on that particular problem. It also lets us all work together to find the right approach before you spend a bunch of time on a PR. So again, when in doubt, open an issue.
 
+If your change adds, removes or renames a metric, or changes its labels or help text, regenerate the
+[list of metrics](METRICS.md) with `./gradlew updateMetricsDoc` and commit the result. `./gradlew check`
+fails when `METRICS.md` is out of date.
+
 ## Developer Certificate of Origin
 
 OpenSearch is an open source product released under the Apache 2.0 license (see either [the Apache site](https://www.apache.org/licenses/LICENSE-2.0) or the [LICENSE.txt file](LICENSE.txt)). The Apache 2.0 license allows you to freely use, modify, distribute, and sell your own products that include Apache 2.0 licensed software.
