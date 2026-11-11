@@ -400,6 +400,21 @@ local throttlingMergingPanel =
   + { gridPos: { w: 12, h: 8 } };
 
 // ==========================================
+// Tasks Row Panels
+// ==========================================
+local tasksByActionPanel =
+  panel.timeSeries.new('Running tasks by action')
+  + timeSeriesBase
+  + panel.timeSeries.queryOptions.withDatasource('prometheus', '$datasource')
+  + panel.timeSeries.queryOptions.withTargets([
+    promQuery('sum by (action) (opensearch_tasks_number{cluster="$cluster", node=~"$node"})', '{{action}}'),
+  ])
+  + panel.timeSeries.options.legend.withShowLegend(true)
+  + panel.timeSeries.options.legend.withDisplayMode('table')
+  + panel.timeSeries.options.legend.withCalcs(['mean', 'lastNotNull', 'max', 'min'])
+  + { gridPos: { w: 24, h: 8 } };
+
+// ==========================================
 // JVM Row Panels
 // ==========================================
 local jvmHeapUsedPanel =
@@ -449,6 +464,7 @@ local systemRow = panel.row.new('System');
 local docsAndLatenciesRow = panel.row.new('Documents and Latencies');
 local cachesRow = panel.row.new('Caches');
 local throttlingRow = panel.row.new('Throttling');
+local tasksRow = panel.row.new('Tasks');
 local jvmRow = panel.row.new('JVM');
 
 // ==========================================
@@ -510,6 +526,10 @@ local jvmRow = panel.row.new('JVM');
           throttlingRow,
           throttlingIndexingPanel,
           throttlingMergingPanel,
+
+          // Tasks row
+          tasksRow,
+          tasksByActionPanel,
 
           // JVM row
           jvmRow,

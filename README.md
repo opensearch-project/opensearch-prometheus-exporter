@@ -44,6 +44,7 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - File System
     - Circuit Breaker
     - Search Backpressure
+    - Running tasks by action
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
@@ -75,6 +76,25 @@ or query text. Only fields reported by OpenSearch are emitted: millisecond metri
 are omitted for memory trackers, and byte metrics are omitted for time trackers. Native
 memory has no rolling average. Missing task or tracker statistics are omitted rather
 than reported as zero. No additional exporter configuration is required.
+
+### Task metrics
+
+The exporter exposes the number of tasks currently running on each node, grouped by
+transport action, as reported by `/_tasks`:
+
+| Metric | Additional labels | Value |
+| --- | --- | --- |
+| `opensearch_tasks_number` | `action` | Number of tasks of this action currently running on the node |
+
+Every sample also has the standard `cluster`, `node`, and `nodeid` labels, and tasks are
+listed from the same nodes as the [nodes filter](#nodes-filter). The `action` label is an
+OpenSearch transport action name, such as `indices:data/write/bulk` or
+`indices:data/write/bulk[s]` (child tasks carry a suffix such as `[s]` or `[n]`). It
+never contains task IDs or descriptions. Actions with no running task are omitted rather
+than reported as zero, and the tasks created by the scrape itself (for example
+`cluster:monitor/prometheus/metrics`) are included. To get cluster-wide counts when each
+node is scraped with the default `_local` filter, use `sum by (action) (opensearch_tasks_number)`.
+This can be disabled with the [`prometheus.tasks`](#task-metrics) setting.
 
 ## Compatibility Matrix
 
@@ -140,6 +160,17 @@ Whether to export cluster settings metrics or not. Default value: `true`.
 To disable exporting cluster settings use:
 ```
 prometheus.cluster.settings: false
+```
+
+#### Task metrics
+
+Whether to export the number of running tasks by action (`opensearch_tasks_number`) or not. Default value: `true`.
+
+Collecting them adds one [list tasks](https://docs.opensearch.org/latest/api-reference/tasks/) request
+(without task details) to every scrape, sent to the same nodes as the [nodes filter](#nodes-filter).
+To disable task metrics use:
+```
+prometheus.tasks: false
 ```
 
 #### Nodes filter

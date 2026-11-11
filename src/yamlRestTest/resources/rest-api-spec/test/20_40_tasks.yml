@@ -1,0 +1,38 @@
+---
+teardown:
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.tasks: null
+
+---
+"Task metrics are exposed by default and can be disabled dynamically":
+  - do:
+      prometheus.metrics: {}
+
+  # The scrape itself is running while the tasks are listed.
+  - match:
+      $body: /.*\#\sTYPE\sopensearch_tasks_number\sgauge\n.*/
+  - match:
+      $body: /.*opensearch_tasks_number\{[^}]*action="cluster:monitor/prometheus/metrics"[^}]*\}\s[1-9][0-9.E+]*\n.*/
+  - match:
+      $body: /.*opensearch_tasks_number\{[^}]*action="cluster:monitor/tasks/lists\[n\]"[^}]*\}\s[1-9][0-9.E+]*\n.*/
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.tasks: false
+        flat_settings: true
+
+  - is_false: transient.prometheus.tasks
+
+  - do:
+      prometheus.metrics: {}
+
+  # Only the HELP and TYPE lines remain, no samples.
+  - match:
+      $body: /^((?!opensearch_tasks_number\{)[\s\S])*$/
+  - match:
+      $body: /.*opensearch_http_open_server_number\{[^}]*\}\s[0-9.E+]+\n.*/
