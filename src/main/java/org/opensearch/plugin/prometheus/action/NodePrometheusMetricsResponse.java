@@ -54,6 +54,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodesInfoResponse nodesInfoResponse;
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
+    private final ScrapeStats scrapeStats;
     private ClusterStatsData clusterStatsData = null;
 
     /**
@@ -67,6 +68,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodesInfoResponse = new NodesInfoResponse(in);
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
+        scrapeStats = new ScrapeStats(in);
         clusterStatsData = new ClusterStatsData(in);
     }
 
@@ -77,6 +79,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
+     * @param scrapeStats ScrapeStats
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -85,12 +88,14 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
+                                         ScrapeStats scrapeStats,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
         this.nodesInfoResponse = localNodesInfoResponse;
         this.nodeStats = nodesStats;
         this.indicesStats = indicesStats;
+        this.scrapeStats = scrapeStats;
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
@@ -128,6 +133,14 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     }
 
     /**
+     * Get the duration and outcome of each request sent while gathering this response.
+     * @return ScrapeStats object
+     */
+    public ScrapeStats getScrapeStats() {
+        return this.scrapeStats;
+    }
+
+    /**
      * Get internal {@link ClusterStatsData} object.
      * @return ClusterStatsData object
      */
@@ -142,6 +155,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodesInfoResponse.writeTo(out);
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
+        scrapeStats.writeTo(out);
         clusterStatsData.writeTo(out);
     }
 }
