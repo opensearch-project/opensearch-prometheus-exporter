@@ -44,6 +44,7 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - File System
     - Circuit Breaker
     - Search Backpressure
+    - Version and build
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
@@ -75,6 +76,25 @@ or query text. Only fields reported by OpenSearch are emitted: millisecond metri
 are omitted for memory trackers, and byte metrics are omitted for time trackers. Native
 memory has no rolling average. Missing task or tracker statistics are omitted rather
 than reported as zero. No additional exporter configuration is required.
+
+### Version metrics
+
+The exporter exposes the version and build of the node that served the scrape, with the
+same values as the [`GET /`](https://docs.opensearch.org/latest/api-reference/) API of
+that node:
+
+| Metric | Additional labels | Value |
+| --- | --- | --- |
+| `opensearch_version_info` | `cluster_uuid`, `version`, `distribution`, `build_type`, `build_hash`, `build_date`, `lucene_version` | Always 1 |
+
+The metric also has the standard `cluster`, `node`, and `nodeid` labels. It is reported
+only for the node that served the scrape, whatever the [nodes filter](#nodes-filter). When
+Prometheus scrapes every node, it shows the version of each node, for example to spot
+nodes left behind during a rolling upgrade:
+
+```
+count by (cluster) (count by (cluster, version) (opensearch_version_info)) > 1
+```
 
 ## Compatibility Matrix
 
