@@ -184,10 +184,12 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
             };
         }
 
-        // Requests that depend on other nodes (nodes stats, indices stats and cluster state) are not fatal: when one
-        // fails, its metrics are left out and the failure is reported by the scrape_success metric. The cluster health
-        // and local nodes info requests stay fatal: they are served by the local node and the response cannot be
-        // built without the local node info.
+        // The nodes stats, indices stats and cluster state requests are not fatal: when one fails, its metrics are left
+        // out and the failure is reported by the scrape_success metric. Indices stats (sent to the data nodes) and
+        // cluster state (sent to the cluster manager) depend on other nodes. Nodes stats only does when
+        // prometheus.nodes.filter selects other nodes (the default, _local, does not), but it is not needed to build
+        // the response either. The cluster health and local nodes info requests stay fatal: they are served by the
+        // local node and the response cannot be built without the local node info.
 
         private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
             new ActionListener<ClusterStateResponse>() {
