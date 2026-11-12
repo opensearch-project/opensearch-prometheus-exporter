@@ -42,6 +42,9 @@ import org.opensearch.plugin.prometheus.rest.RestPrometheusMetricsAction;
 import java.io.IOException;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -58,6 +61,7 @@ public class PrometheusMetricsCatalog {
     private final String metricPrefix;
 
     private final HashMap<String, Collector> metrics;
+    private final List<MetricDescription> descriptions;
     private final CollectorRegistry registry;
     public static final List<String> NODE_LABEL_NAMES = List.of("cluster", "node", "nodeid");
 
@@ -71,6 +75,7 @@ public class PrometheusMetricsCatalog {
         this.clusterName = clusterName;
         this.metricPrefix = metricPrefix;
         metrics = new HashMap<>();
+        descriptions = new ArrayList<>();
         registry = new CollectorRegistry();
     }
 
@@ -156,6 +161,7 @@ public class PrometheusMetricsCatalog {
                 register(registry);
 
         metrics.put(metric, gauge);
+        describe(metric, "gauge", help, getExtendedClusterLabelNames(labels));
 
         logger.debug(String.format(Locale.ENGLISH, "Registered new cluster gauge %s", metric));
     }
@@ -207,6 +213,7 @@ public class PrometheusMetricsCatalog {
                 register(registry);
 
         metrics.put(metric, gauge);
+        describe(metric, "gauge", help, getExtendedNodeLabelNames(labels));
 
         logger.debug(String.format(Locale.ENGLISH, "Registered new node gauge %s", metric));
     }
@@ -241,6 +248,7 @@ public class PrometheusMetricsCatalog {
                 register(registry);
 
         metrics.put(metric, summary);
+        describe(metric, "summary", help, getExtendedNodeLabelNames(labels));
 
         logger.debug(String.format(Locale.ENGLISH, "Registered new summary %s", metric));
     }
@@ -257,6 +265,28 @@ public class PrometheusMetricsCatalog {
                                            String... labelValues) {
         Summary summary = (Summary) metrics.get(metric);
         return summary.labels(getExtendedNodeLabelValues(nodeInfo, labelValues)).startTimer();
+    }
+
+    /**
+     * Description of a registered metric, used to generate the metrics documentation.
+     *
+     * @param name   full metric name, including the metric prefix
+     * @param type   Prometheus metric type, such as {@code gauge} or {@code summary}
+     * @param help   help text
+     * @param labels all label names, including the standard {@code cluster}, {@code node} and {@code nodeid} labels
+     */
+    public record MetricDescription(String name, String type, String help, List<String> labels) {}
+
+    private void describe(final String metric, final String type, final String help, final String[] labelNames) {
+        descriptions.add(new MetricDescription(metricPrefix + metric, type, help, List.copyOf(Arrays.asList(labelNames))));
+    }
+
+    /**
+     * Get the descriptions of all registered metrics, in registration order.
+     * @return unmodifiable list of metric descriptions
+     */
+    public List<MetricDescription> getMetricDescriptions() {
+        return Collections.unmodifiableList(descriptions);
     }
 
     /**
