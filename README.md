@@ -45,6 +45,7 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - Circuit Breaker
     - Search Backpressure
 - Indices status
+- Exporter plugin version and git revision
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
 ### Search backpressure metrics
@@ -75,6 +76,21 @@ or query text. Only fields reported by OpenSearch are emitted: millisecond metri
 are omitted for memory trackers, and byte metrics are omitted for time trackers. Native
 memory has no rolling average. Missing task or tracker statistics are omitted rather
 than reported as zero. No additional exporter configuration is required.
+
+### Exporter build metrics
+
+The exporter exposes information about the exporter plugin itself, for the node that
+served the scrape:
+
+| Metric | Additional labels | Value |
+| --- | --- | --- |
+| `opensearch_exporter_build_info` | `version`, `revision`, `java_version` | Always 1 |
+
+The metric also has the standard `cluster`, `node`, and `nodeid` labels. `version` is the
+plugin version (such as `3.9.0.0`), `revision` is the git commit the plugin was built from
+(`unknown` when built outside a git checkout), and `java_version` is the version of the Java
+runtime of the node. When Prometheus scrapes every node, it shows which plugin version each
+node runs, for example during a rolling upgrade.
 
 ## Compatibility Matrix
 

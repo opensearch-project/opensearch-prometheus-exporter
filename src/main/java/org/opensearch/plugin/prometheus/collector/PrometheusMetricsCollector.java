@@ -110,6 +110,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerSearchBackpressureMetrics();
+        registerExporterBuildMetrics();
         registerESSettings();
     }
 
@@ -1025,6 +1026,25 @@ public class PrometheusMetricsCollector {
         if (value instanceof Number number) {
             catalog.setNodeGauge(nodeInfo, metric, number.doubleValue(), labelValues);
         }
+    }
+
+    private void registerExporterBuildMetrics() {
+        catalog.registerNodeGauge("exporter_build_info",
+                "Constant 1, labelled with the version and git revision of the exporter plugin and the Java runtime version "
+                        + "of the node that served the scrape",
+                "version", "revision", "java_version");
+    }
+
+    /**
+     * Update the exporter build metric of the originating node, which is the node that served the scrape.
+     *
+     * @param originNodeName Originating node name.
+     * @param originNodeId   Originating node ID.
+     * @param buildInfo      Build information of the exporter plugin.
+     */
+    public void updateExporterBuildMetrics(String originNodeName, String originNodeId, ExporterBuildInfo buildInfo) {
+        catalog.setNodeGauge(new Tuple<>(originNodeName, originNodeId), "exporter_build_info", 1,
+                buildInfo.getVersion(), buildInfo.getRevision(), Runtime.version().toString());
     }
 
     @SuppressWarnings("checkstyle:LineLength")

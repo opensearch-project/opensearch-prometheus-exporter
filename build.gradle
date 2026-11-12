@@ -153,6 +153,24 @@ task integTest(type: RestIntegTestTask) {
 }
 tasks.named("check").configure { dependsOn(integTest) }
 
+// Exporter build information exposed as the opensearch_exporter_build_info metric. The git revision is the same
+// value as the "Change" entry of the jar manifest. The build date is left out on purpose: it would change the
+// resources, and thus invalidate the jar and the tests, on every build.
+def generateBuildInfo = tasks.register('generateBuildInfo') {
+    def outputDir = layout.buildDirectory.dir('generated/build-info-resources')
+    def pluginVersion = project.version.toString()
+    def gitRevision = org.opensearch.gradle.info.BuildParams.gitRevision ?: 'unknown'
+    inputs.property('version', pluginVersion)
+    inputs.property('revision', gitRevision)
+    outputs.dir(outputDir)
+    doLast {
+        def file = outputDir.get().file('org/opensearch/plugin/prometheus/collector/exporter-build.properties').asFile
+        file.parentFile.mkdirs()
+        file.text = "version=${pluginVersion}\nrevision=${gitRevision}\n"
+    }
+}
+sourceSets.main.resources.srcDir(generateBuildInfo)
+
 // Temporary disable task :testingConventions
 testingConventions.enabled = false
 
