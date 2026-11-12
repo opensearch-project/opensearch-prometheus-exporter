@@ -33,6 +33,7 @@ package org.opensearch.plugin.prometheus.action;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
+import org.opensearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.common.Nullable;
@@ -54,6 +55,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodesInfoResponse nodesInfoResponse;
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
+    @Nullable private final ListTasksResponse listTasks;
     private ClusterStatsData clusterStatsData = null;
 
     /**
@@ -67,6 +69,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodesInfoResponse = new NodesInfoResponse(in);
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
+        listTasks = in.readOptionalWriteable(ListTasksResponse::new);
         clusterStatsData = new ClusterStatsData(in);
     }
 
@@ -76,6 +79,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param localNodesInfoResponse NodesInfoResponse
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
+     * @param listTasks ListTasksResponse
      * @param clusterStateResponse ClusterStateResponse
      * @param settings Settings
      * @param clusterSettings ClusterSettings
@@ -84,6 +88,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodesInfoResponse localNodesInfoResponse,
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
+                                         @Nullable ListTasksResponse listTasks,
                                          @Nullable ClusterStateResponse clusterStateResponse,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
@@ -91,6 +96,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         this.nodesInfoResponse = localNodesInfoResponse;
         this.nodeStats = nodesStats;
         this.indicesStats = indicesStats;
+        this.listTasks = listTasks;
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
@@ -128,6 +134,15 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     }
 
     /**
+     * Get internal {@link ListTasksResponse} object.
+     * @return ListTasksResponse object, or null when task metrics are disabled
+     */
+    @Nullable
+    public ListTasksResponse getListTasks() {
+        return this.listTasks;
+    }
+
+    /**
      * Get internal {@link ClusterStatsData} object.
      * @return ClusterStatsData object
      */
@@ -142,6 +157,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodesInfoResponse.writeTo(out);
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
+        out.writeOptionalWriteable(listTasks);
         clusterStatsData.writeTo(out);
     }
 }
