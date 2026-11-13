@@ -47,6 +47,27 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
+### Shards per node
+
+`opensearch_node_shards_number` (with the default `opensearch_` prefix) reports the number of shard copies allocated
+to each node, with the standard `cluster`, `node` and `nodeid` labels. It is reported for the same nodes as the other
+node metrics, see [Nodes filter](#nodes-filter). The `type` label splits the shards into disjoint groups, so their
+sum is the total number of shard copies on the node:
+
+| `type` | Shards |
+| --- | --- |
+| `primary` | Started primary shards |
+| `replica` | Started replica shards |
+| `relocating` | Shards being relocated away from the node |
+| `initializing` | Shards being initialized on the node, including the targets of relocations |
+
+The values are counted from the routing table of the cluster state of the node serving the request, so they add no
+extra request. For example, to see how evenly shards are spread across nodes:
+
+```
+sum by (cluster, node) (opensearch_node_shards_number)
+```
+
 ### Search backpressure metrics
 
 The exporter exposes the statistics from `/_nodes/stats/search_backpressure` using the

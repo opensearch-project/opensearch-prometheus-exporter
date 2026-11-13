@@ -47,6 +47,7 @@ import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.transport.client.Client;
 import org.opensearch.transport.client.Requests;
 import org.opensearch.common.Nullable;
@@ -56,6 +57,9 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Transport action class for Prometheus Exporter plugin.
@@ -70,6 +74,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
     private final Settings settings;
     private final ClusterSettings clusterSettings;
     private final PrometheusSettings prometheusSettings;
+    private final ClusterService clusterService;
     private final Logger logger = LogManager.getLogger(getClass());
 
     /**
@@ -79,17 +84,19 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
      * @param transportService Transport service
      * @param actionFilters Action filters
      * @param clusterSettings Cluster settings
+     * @param clusterService Cluster service
      */
     @Inject
     public TransportNodePrometheusMetricsAction(Settings settings, Client client,
                                                 TransportService transportService, ActionFilters actionFilters,
-                                                ClusterSettings clusterSettings) {
+                                                ClusterSettings clusterSettings, ClusterService clusterService) {
         super(NodePrometheusMetricsAction.NAME, transportService, actionFilters,
                 NodePrometheusMetricsRequest::new);
         this.client = client;
         this.settings = settings;
         this.clusterSettings = clusterSettings;
         this.prometheusSettings = new PrometheusSettings(settings, clusterSettings);
+        this.clusterService = clusterService;
     }
 
     @Override
@@ -113,6 +120,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private NodesStatsResponse nodesStatsResponse = null;
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
+        private NodeShardsData nodeShardsData = null;
 
         // read the state of prometheus dynamic settings only once at the beginning of the async request
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
@@ -159,7 +167,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
         private void gatherRequests() {
             listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse, nodesStatsResponse, indicesStatsResponse,
-                    clusterStateResponse));
+                    clusterStateResponse, nodeShardsData));
         }
 
         private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
@@ -199,6 +207,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(NodesStatsResponse nodeStats) {
                     nodesStatsResponse = nodeStats;
+                    // Shards per node are counted from the routing table of the local cluster state (like the cluster
+                    // health above), for the same nodes as the nodes stats, i.e. the nodes selected by the nodes filter.
+                    List<String> nodeIds = new ArrayList<>();
+                    for (NodeStats ns : nodeStats.getNodes()) {
+                        nodeIds.add(ns.getNode().getId());
+                    }
+                    nodeShardsData = new NodeShardsData(clusterService.state().getRoutingNodes(), nodeIds);
                     if (isPrometheusIndices) {
                         client.admin().indices().stats(indicesStatsRequest, indicesStatsResponseActionListener);
                     } else {
@@ -248,12 +263,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                                                               NodesInfoResponse localNodesInfoResponse,
                                                               NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
-                                                              @Nullable ClusterStateResponse clusterStateResponse) {
+                                                              @Nullable ClusterStateResponse clusterStateResponse,
+                                                              @Nullable NodeShardsData nodeShardsData) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
                     nodesStats.getNodes().toArray(new NodeStats[0]),
-                    indicesStats, clusterStateResponse,
+                    indicesStats, clusterStateResponse, nodeShardsData,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);

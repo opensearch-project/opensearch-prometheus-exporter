@@ -31,6 +31,7 @@
 package org.opensearch.plugin.prometheus.collector;
 
 import org.opensearch.plugin.prometheus.action.ClusterStatsData;
+import org.opensearch.plugin.prometheus.action.NodeShardsData;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.indices.stats.CommonStats;
@@ -97,6 +98,7 @@ public class PrometheusMetricsCollector {
 
         registerClusterMetrics();
         registerNodeMetrics();
+        registerNodeShardsMetrics();
         registerIndicesMetrics();
         registerPerIndexMetrics();
         registerTransportMetrics();
@@ -152,6 +154,21 @@ public class PrometheusMetricsCollector {
             catalog.setClusterGauge("cluster_is_timedout_bool", chr.isTimedOut() ? 1 : 0);
 
             catalog.setClusterGauge("cluster_inflight_fetch_number", chr.getNumberOfInFlightFetch());
+        }
+    }
+
+    private void registerNodeShardsMetrics() {
+        catalog.registerNodeGauge("node_shards_number", "Number of shards allocated to the node", "type");
+    }
+
+    private void updateNodeShardsMetrics(Tuple<String, String> nodeInfo, @Nullable NodeShardsData nsd) {
+        if (nsd != null) {
+            for (String type : NodeShardsData.TYPES) {
+                Integer shards = nsd.getShards(nodeInfo.v2(), type);
+                if (shards != null) {
+                    catalog.setNodeGauge(nodeInfo, "node_shards_number", shards, type);
+                }
+            }
         }
     }
 
@@ -1081,6 +1098,28 @@ public class PrometheusMetricsCollector {
                               NodeStats[] nodeStats,
                               @Nullable IndicesStatsResponse indicesStats,
                               @Nullable ClusterStatsData clusterStatsData) {
+        updateMetrics(originNodeName, originNodeId, clusterHealthResponse, nodeStats, indicesStats, clusterStatsData, null);
+    }
+
+    /**
+     * Update all collected metrics from relevant response data.
+     *
+     * Metrics gathering requests were originated on one particular node called "originating" node.
+     *
+     * @param originNodeName            Originating node name.
+     * @param originNodeId              Originating node ID.
+     * @param clusterHealthResponse     ClusterHealthResponse
+     * @param nodeStats                 NodeStats filtered using nodes filter
+     * @param indicesStats              IndicesStatsResponse
+     * @param clusterStatsData          ClusterStatsData
+     * @param nodeShardsData            NodeShardsData
+     */
+    public void updateMetrics(String originNodeName, String originNodeId,
+                              @Nullable ClusterHealthResponse clusterHealthResponse,
+                              NodeStats[] nodeStats,
+                              @Nullable IndicesStatsResponse indicesStats,
+                              @Nullable ClusterStatsData clusterStatsData,
+                              @Nullable NodeShardsData nodeShardsData) {
         Summary.Timer timer = catalog.startSummaryTimer(
                 new Tuple<>(originNodeName, originNodeId),
                 "metrics_generate_time_seconds");
@@ -1093,6 +1132,7 @@ public class PrometheusMetricsCollector {
             Tuple<String, String> nodeInfo = new Tuple<>(nodeName, nodeID);
 
             updateNodeMetrics(nodeInfo, s);
+            updateNodeShardsMetrics(nodeInfo, nodeShardsData);
             updateIndicesMetrics(nodeInfo, s.getIndices());
             updateTransportMetrics(nodeInfo, s.getTransport());
             updateHTTPMetrics(nodeInfo, s.getHttp());
