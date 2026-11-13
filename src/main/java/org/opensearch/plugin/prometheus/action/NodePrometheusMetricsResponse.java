@@ -34,6 +34,7 @@ import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
+import org.opensearch.action.admin.indices.datastream.DataStreamsStatsAction;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.common.Nullable;
 import org.opensearch.core.action.ActionResponse;
@@ -55,6 +56,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
     private ClusterStatsData clusterStatsData = null;
+    @Nullable private final DataStreamsStatsAction.Response dataStreamsStats;
 
     /**
      * A constructor that materializes the instance from {@link StreamInput}.
@@ -68,6 +70,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
         clusterStatsData = new ClusterStatsData(in);
+        dataStreamsStats = in.readOptionalWriteable(DataStreamsStatsAction.Response::new);
     }
 
     /**
@@ -77,6 +80,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
+     * @param dataStreamsStats DataStreamsStatsAction.Response
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -85,6 +89,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
+                                         @Nullable DataStreamsStatsAction.Response dataStreamsStats,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
@@ -94,6 +99,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
+        this.dataStreamsStats = dataStreamsStats;
     }
 
     /**
@@ -136,6 +142,15 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         return this.clusterStatsData;
     }
 
+    /**
+     * Get internal {@link DataStreamsStatsAction.Response} object.
+     * @return DataStreamsStatsAction.Response object
+     */
+    @Nullable
+    public DataStreamsStatsAction.Response getDataStreamsStats() {
+        return this.dataStreamsStats;
+    }
+
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         clusterHealth.writeTo(out);
@@ -143,5 +158,6 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
         clusterStatsData.writeTo(out);
+        out.writeOptionalWriteable(dataStreamsStats);
     }
 }

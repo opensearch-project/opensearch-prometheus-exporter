@@ -142,6 +142,31 @@ To disable exporting cluster settings use:
 prometheus.cluster.settings: false
 ```
 
+#### Data stream metrics
+
+Whether to export [data stream](https://docs.opensearch.org/latest/im-plugin/data-streams/) metrics or not.
+Default value: `false`.
+
+Data stream statistics need an extra request (`GET _data_stream/_stats`) that is sent to the shards of all data
+streams on every scrape. To enable data stream metrics use:
+```
+prometheus.data_streams: true
+```
+
+| Metric | Value |
+| --- | --- |
+| `opensearch_data_stream_backing_indices_number` | Number of backing indices of the data stream |
+| `opensearch_data_stream_store_size_bytes` | Store size of the data stream in bytes |
+| `opensearch_data_stream_maximum_timestamp_seconds` | Highest `@timestamp` of the data stream as a Unix timestamp. Omitted for data streams without documents. |
+
+Every metric has the `cluster` and `data_stream` labels. All data streams are reported, the
+[indices filter](#indices-filter) does not apply to them. With the Security plugin, the user scraping the metrics
+also needs the `indices:monitor/data_stream/stats` permission on the data streams.
+For example, to alert when a data stream stops receiving data:
+```
+time() - opensearch_data_stream_maximum_timestamp_seconds > 3600
+```
+
 #### Nodes filter
 
 Metrics include statistics about individual OpenSearch nodes.
