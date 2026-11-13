@@ -1,0 +1,69 @@
+# Test that the index creation timestamp is exposed as an index level metric.
+---
+"Index creation timestamp":
+
+  - do:
+      indices.create:
+        index: twitter
+        body:
+          settings:
+            index:
+              creation_date: 1759276800123
+
+  - do:
+      indices.create:
+        index: facebook
+
+  # Index creation date in milliseconds is exported in seconds
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_creation_timestamp_seconds\{
+            cluster="yamlRestTest",
+            index="twitter",
+        \} \s+ 1\.759276800123E9 \n?
+        .*/
+
+  # Indices without an explicit creation date get the time they were created
+  - match:
+      $body: |
+        /.*
+        opensearch_index_creation_timestamp_seconds\{
+            cluster="yamlRestTest",
+            index="facebook",
+        \} \s+ 1\.\d+E9 \n?
+        .*/
+
+  # The creation timestamp depends on index level metrics
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: false
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_creation_timestamp_seconds (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_creation_timestamp_seconds \s gauge \n
+        (?!opensearch_index_creation_timestamp_seconds)
+        .*/
+
+  # Test clean up...
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: null
+        flat_settings: true
+
+  - do:
+      indices.delete:
+        index: twitter,facebook
