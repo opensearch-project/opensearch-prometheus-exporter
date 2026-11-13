@@ -1,0 +1,77 @@
+# Test that the number of shards per node is exposed as a node level metric.
+---
+"Shards per node":
+
+  - do:
+      indices.create:
+        index: twitter
+        body:
+          settings:
+            index:
+              number_of_shards: 2
+              number_of_replicas: 1
+
+  - do:
+      cluster.health:
+        index: twitter
+        wait_for_status: green
+        wait_for_no_relocating_shards: true
+        wait_for_no_initializing_shards: true
+
+  # By default only the local node is reported, like the other node metrics
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_node_shards_number\{
+            cluster="yamlRestTest",
+            node="[^"]+",
+            nodeid="[^"]+",
+            type="(primary|replica|relocating|initializing)",
+        \} \s+ \d+\.\d+ \n?){4}
+        .*/
+
+  - match:
+      $body: |
+        /(?s)^(?!(.*opensearch_node_shards_number\{[^}]*type="primary",\}.*){2}).*$/
+
+  # With the nodes filter set to all nodes, every node is reported
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.nodes.filter: "_all"
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_node_shards_number\{
+            cluster="yamlRestTest",
+            node="yamlRestTest-[01]",
+            nodeid="[^"]+",
+            type="(primary|replica|relocating|initializing)",
+        \} \s+ \d+\.\d+ \n?){8}
+        .*/
+
+  # The cluster is green, so no shard is relocating or initializing
+  - match:
+      $body: |
+        /(?s)^(?!.*opensearch_node_shards_number\{[^}]*type="(relocating|initializing)",\}\ [1-9]).*$/
+
+  # Test clean up...
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.nodes.filter: null
+        flat_settings: true
+
+  - do:
+      indices.delete:
+        index: twitter
