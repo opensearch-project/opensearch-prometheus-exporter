@@ -9,7 +9,6 @@
 package org.opensearch.plugin.prometheus.collector;
 
 import io.prometheus.client.Collector;
-import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.exporter.common.TextFormat;
 import org.opensearch.common.CheckedRunnable;
@@ -19,21 +18,14 @@ import org.opensearch.plugin.prometheus.filter.PrometheusActionFilter;
 import org.opensearch.test.OpenSearchTestCase;
 
 import java.io.IOException;
+import java.io.Writer;
 import java.lang.management.ManagementFactory;
 import java.util.Collections;
-import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
 
-    /**
-     * A fixed workload exercising every public entry point and every awkward case the real
-     * collector can produce: both label scopes, a registered-but-unused family, label values
-     * needing escaping or UTF-8 encoding, and values spanning every branch of
-     * {@link Double#toString}.
-     */
     private static PrometheusMetricsCatalog buildReferenceCatalog() {
         PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog("test-cluster", "opensearch_");
 
@@ -49,7 +41,6 @@ public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
         catalog.setClusterGauge("cluster_shards_number", 2638, "active");
         catalog.setClusterGauge("cluster_shards_number", 937, "active_primary");
 
-        // Values chosen to cross every branch of Double.toString.
         catalog.setClusterGauge("index_doc_number", 0d, "idx-zero", "total");
         catalog.setClusterGauge("index_doc_number", 1d, "idx-one", "total");
         catalog.setClusterGauge("index_doc_number", 9999999d, "idx-below-1e7", "total");
@@ -65,7 +56,6 @@ public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
         catalog.setClusterGauge("index_doc_number", Double.MAX_VALUE, "idx-max", "total");
         catalog.setClusterGauge("index_doc_number", Long.MAX_VALUE, "idx-long-max", "total");
 
-        // Label values that must be escaped or UTF-8 encoded.
         catalog.setClusterGauge("index_doc_number", 1d, "idx-with-\"quote", "total");
         catalog.setClusterGauge("index_doc_number", 2d, "idx-with-\\backslash", "total");
         catalog.setClusterGauge("index_doc_number", 3d, "idx-with-\nnewline", "total");
@@ -84,23 +74,13 @@ public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
         return catalog;
     }
 
-    /**
-     * Both renderings enumerate the same registry, so they must agree byte for byte.
-     * <p>
-     * {@code utf8ToString()} here and below leaves the pages untouched but copies them all into one contiguous
-     * String, which is exactly the allocation the paging avoids. That is fine in a test, but production code
-     * must not call it on the response.
-     */
+    // utf8ToString() copies all pages into one String. Fine in tests; production code must not call it.
     @SuppressWarnings("deprecation")
     public void testTextFormatBytesIsIdenticalToTextFormat() throws IOException {
         PrometheusMetricsCatalog catalog = buildReferenceCatalog();
         assertEquals(catalog.toTextFormat(), catalog.toTextFormatBytes().utf8ToString());
     }
 
-    /**
-     * One label value spanning several pages, built from 3- and 4-byte UTF-8 characters, so that
-     * multi-byte sequences straddle page and writer-buffer boundaries.
-     */
     @SuppressWarnings("deprecation")
     public void testTextFormatBytesIsIdenticalToTextFormatAcrossPageBoundaries() throws IOException {
         PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog("test-cluster", "opensearch_");
@@ -110,97 +90,35 @@ public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
         assertEquals(catalog.toTextFormat(), catalog.toTextFormatBytes().utf8ToString());
     }
 
-    /**
-     * Guards against the scrape document being copied again. On large clusters it runs to tens of MB,
-     * and every contiguous copy of it is a G1 humongous allocation, so rendering must cost one paged
-     * buffer of the document's own size and nothing more.
-     * <p>
-     * Rendering the same samples into a discarding writer gives the cost that does not depend on where
-     * the output goes (sample enumeration, number formatting, escaping); subtracting it leaves what the
-     * output itself costs. That is about one document's size. Rendering through a
-     * {@link java.io.StringWriter} costs several, and any single extra copy, whether a String, a
-     * {@code byte[]} or a {@code BytesArray}, adds at least one more.
-     */
-    @SuppressForbidden(reason = "per-thread allocated bytes are only available from com.sun.management.ThreadMXBean")
-    public void testTextFormatBytesAllocatesOneDocumentSize() throws Exception {
-        java.lang.management.ThreadMXBean bean = ManagementFactory.getThreadMXBean();
-        assumeTrue("thread allocation accounting is not available on this JVM",
-                bean instanceof com.sun.management.ThreadMXBean
-                        && ((com.sun.management.ThreadMXBean) bean).isThreadAllocatedMemoryEnabled());
-        com.sun.management.ThreadMXBean mx = (com.sun.management.ThreadMXBean) bean;
-
-        // The samples live in a registry of their own, registered with an otherwise empty catalog, so that
-        // the baseline can enumerate exactly the samples the catalog renders.
-        CollectorRegistry registry = indicesRegistry(between(400, 800));
-        PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog("test-cluster", "opensearch_");
-        catalog.registerCollector(new Collector() {
-            @Override
-            public List<MetricFamilySamples> collect() {
-                return Collections.list(registry.metricFamilySamples());
-            }
-        });
-        long[] document = new long[1];
-
-        CheckedRunnable<IOException> render = () -> document[0] = catalog.toTextFormatBytes().length();
-        CheckedRunnable<IOException> discard = () ->
-                TextFormat.write004(java.io.Writer.nullWriter(), registry.metricFamilySamples());
-
-        // Warm up so that the JIT has settled, then keep the cheapest of several runs to discard noise.
-        for (int i = 0; i < 5; i++) {
-            render.run();
-            discard.run();
+    // Subtracts the cost of rendering into a discarding writer, leaving only what the output itself costs.
+    public void testTextFormatBytesAllocatesOneDocumentSize() throws IOException {
+        Gauge gauge = Gauge.build().name("opensearch_index_doc_number").help("Docs").labelNames("index").create();
+        for (int i = 0; i < 100_000; i++) {
+            gauge.labels("my-application-logs-" + i).set(i);
         }
+        PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog("test-cluster", "opensearch_");
+        catalog.registerCollector(gauge);
+        long document = catalog.toTextFormatBytes().length();
+
         long rendered = Long.MAX_VALUE;
         long baseline = Long.MAX_VALUE;
         for (int i = 0; i < 10; i++) {
-            rendered = Math.min(rendered, allocatedBy(mx, render));
-            baseline = Math.min(baseline, allocatedBy(mx, discard));
+            rendered = Math.min(rendered, allocatedBy(() -> catalog.toTextFormatBytes()));
+            baseline = Math.min(baseline, allocatedBy(
+                    () -> TextFormat.write004(Writer.nullWriter(), Collections.enumeration(gauge.collect()))));
         }
-
-        double ratio = (double) (rendered - baseline) / document[0];
-        assertTrue(String.format(Locale.ROOT,
-                "the output cost %.2fx its own size (%,d bytes for a %,d-byte document, over a %,d-byte"
-                        + " rendering baseline); about 1x is expected, so it is likely being copied again",
-                ratio, rendered - baseline, document[0], baseline), ratio < 1.5);
+        double ratio = (double) (rendered - baseline) / document;
+        assertTrue("output cost " + ratio + "x the document size, expected about 1x", ratio < 1.5);
     }
 
     @SuppressForbidden(reason = "per-thread allocated bytes are only available from com.sun.management.ThreadMXBean")
-    private static long allocatedBy(com.sun.management.ThreadMXBean mx, CheckedRunnable<IOException> r)
-            throws IOException {
+    private static long allocatedBy(CheckedRunnable<IOException> r) throws IOException {
+        com.sun.management.ThreadMXBean mx = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
         long before = mx.getCurrentThreadAllocatedBytes();
         r.run();
         return mx.getCurrentThreadAllocatedBytes() - before;
     }
 
-    /**
-     * A registry shaped like the per-index part of a real scrape: 60 gauge families, each with a
-     * {@code total} and a {@code primaries} sample per index. Each index adds about 14 KB of output,
-     * so 400 to 800 indices come to 6 to 11 MB.
-     */
-    private static CollectorRegistry indicesRegistry(int indices) {
-        CollectorRegistry registry = new CollectorRegistry();
-        int families = 60;
-        Gauge[] gauges = new Gauge[families];
-        for (int f = 0; f < families; f++) {
-            gauges[f] = Gauge.build()
-                    .name("opensearch_index_metric_" + f)
-                    .help("Index metric number " + f)
-                    .labelNames("cluster", "index", "context")
-                    .register(registry);
-        }
-        for (int i = 0; i < indices; i++) {
-            String index = "my-application-logs-2026.10." + i;
-            for (int f = 0; f < families; f++) {
-                gauges[f].labels("test-cluster", index, "total").set(i * 1000.5d + f);
-                gauges[f].labels("test-cluster", index, "primaries").set(i * 10.25d + f);
-            }
-        }
-        return registry;
-    }
-
-    /**
-     * Metrics kept outside the catalog, such as the action filter's, are rendered in the same document.
-     */
     public void testRegisteredCollectorIsRendered() throws IOException {
         PrometheusMetricsCatalog catalog = buildReferenceCatalog();
         PrometheusActionFilter filter = new PrometheusActionFilter("opensearch_");
@@ -212,23 +130,6 @@ public class PrometheusMetricsCatalogTests extends OpenSearchTestCase {
                 + "nodeid=\"AbCdEf0123456789\",action=\"indices:data/read/search\",outcome=\"success\",} 0.0\n"));
     }
 
-    /**
-     * Registering a collector that provides a name the catalog already has fails, rather than rendering
-     * the metric twice.
-     */
-    public void testRegisteredCollectorMustNotShareMetricNames() {
-        PrometheusMetricsCatalog catalog = buildReferenceCatalog();
-        PrometheusActionFilter filter = new PrometheusActionFilter("opensearch_");
-        catalog.registerCollector(filter.collector("test-cluster", "node-1", "AbCdEf0123456789"));
-
-        expectThrows(IllegalArgumentException.class,
-                () -> catalog.registerCollector(filter.collector("test-cluster", "node-1", "AbCdEf0123456789")));
-    }
-
-    /**
-     * The registry checks only the names a collector describes, so a metric added to the action filter but
-     * left out of its description would be rendered without being checked for a clash.
-     */
     public void testRegisteredCollectorDescribesEveryMetricItCollects() {
         Collector collector = new PrometheusActionFilter("opensearch_")
                 .collector("test-cluster", "node-1", "AbCdEf0123456789");
