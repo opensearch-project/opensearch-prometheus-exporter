@@ -33,6 +33,7 @@ package org.opensearch.plugin.prometheus.collector;
 import org.opensearch.plugin.prometheus.action.ClusterStatsData;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
+import org.opensearch.action.admin.indices.datastream.DataStreamsStatsAction;
 import org.opensearch.action.admin.indices.stats.CommonStats;
 import org.opensearch.action.admin.indices.stats.IndexStats;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
@@ -99,6 +100,7 @@ public class PrometheusMetricsCollector {
         registerNodeMetrics();
         registerIndicesMetrics();
         registerPerIndexMetrics();
+        registerDataStreamMetrics();
         registerTransportMetrics();
         registerHTTPMetrics();
         registerThreadPoolMetrics();
@@ -508,6 +510,29 @@ public class PrometheusMetricsCollector {
     }
 
     @SuppressWarnings("checkstyle:LineLength")
+    private void registerDataStreamMetrics() {
+        catalog.registerClusterGauge("data_stream_backing_indices_number", "Number of backing indices of the data stream",
+                "data_stream");
+        catalog.registerClusterGauge("data_stream_store_size_bytes", "Store size of the data stream in bytes", "data_stream");
+        catalog.registerClusterGauge("data_stream_maximum_timestamp_seconds",
+                "Highest timestamp of the data stream as a Unix timestamp", "data_stream");
+    }
+
+    private void updateDataStreamMetrics(@Nullable DataStreamsStatsAction.Response dss) {
+        if (dss == null) {
+            return;
+        }
+        for (DataStreamsStatsAction.DataStreamStats stats : dss.getDataStreams()) {
+            String name = stats.getDataStream();
+            catalog.setClusterGauge("data_stream_backing_indices_number", stats.getBackingIndices(), name);
+            catalog.setClusterGauge("data_stream_store_size_bytes", stats.getStoreSize().getBytes(), name);
+            // A data stream without documents reports 0, which is not a meaningful timestamp.
+            if (stats.getMaximumTimestamp() > 0) {
+                catalog.setClusterGauge("data_stream_maximum_timestamp_seconds", stats.getMaximumTimestamp() / 1000.0, name);
+            }
+        }
+    }
+
     private void updatePerIndexContextMetrics(String indexName, String context, CommonStats idx) {
         catalog.setClusterGauge("index_doc_number", idx.getDocs().getCount(), indexName, context);
         catalog.setClusterGauge("index_doc_deleted_number", idx.getDocs().getDeleted(), indexName, context);
@@ -1081,6 +1106,28 @@ public class PrometheusMetricsCollector {
                               NodeStats[] nodeStats,
                               @Nullable IndicesStatsResponse indicesStats,
                               @Nullable ClusterStatsData clusterStatsData) {
+        updateMetrics(originNodeName, originNodeId, clusterHealthResponse, nodeStats, indicesStats, clusterStatsData, null);
+    }
+
+    /**
+     * Update all collected metrics from relevant response data.
+     *
+     * Metrics gathering requests were originated on one particular node called "originating" node.
+     *
+     * @param originNodeName            Originating node name.
+     * @param originNodeId              Originating node ID.
+     * @param clusterHealthResponse     ClusterHealthResponse
+     * @param nodeStats                 NodeStats filtered using nodes filter
+     * @param indicesStats              IndicesStatsResponse
+     * @param clusterStatsData          ClusterStatsData
+     * @param dataStreamsStats          DataStreamsStatsAction.Response
+     */
+    public void updateMetrics(String originNodeName, String originNodeId,
+                              @Nullable ClusterHealthResponse clusterHealthResponse,
+                              NodeStats[] nodeStats,
+                              @Nullable IndicesStatsResponse indicesStats,
+                              @Nullable ClusterStatsData clusterStatsData,
+                              @Nullable DataStreamsStatsAction.Response dataStreamsStats) {
         Summary.Timer timer = catalog.startSummaryTimer(
                 new Tuple<>(originNodeName, originNodeId),
                 "metrics_generate_time_seconds");
@@ -1109,6 +1156,7 @@ public class PrometheusMetricsCollector {
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
         }
+        updateDataStreamMetrics(dataStreamsStats);
         if (isPrometheusClusterSettings) {
             updateESSettings(clusterStatsData);
         }

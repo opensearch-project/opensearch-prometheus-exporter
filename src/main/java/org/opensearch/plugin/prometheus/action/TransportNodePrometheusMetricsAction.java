@@ -43,6 +43,7 @@ import org.opensearch.action.admin.cluster.node.stats.NodesStatsRequest;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
+import org.opensearch.action.admin.indices.datastream.DataStreamsStatsAction;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.ActionFilters;
@@ -113,10 +114,12 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private NodesStatsResponse nodesStatsResponse = null;
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
+        private DataStreamsStatsAction.Response dataStreamsStatsResponse = null;
 
         // read the state of prometheus dynamic settings only once at the beginning of the async request
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
         private final boolean isPrometheusClusterSettings = prometheusSettings.getPrometheusClusterSettings();
+        private final boolean isPrometheusDataStreams = prometheusSettings.getPrometheusDataStreams();
         private final String prometheusNodesFilter = prometheusSettings.getNodesFilter();
 
         // All the requests are executed in sequential non-blocking order.
@@ -159,8 +162,30 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
         private void gatherRequests() {
             listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse, nodesStatsResponse, indicesStatsResponse,
-                    clusterStateResponse));
+                    clusterStateResponse, dataStreamsStatsResponse));
         }
+
+        private void requestClusterSettings() {
+            if (isPrometheusClusterSettings) {
+                client.admin().cluster().state(clusterStateRequest, clusterStateResponseActionListener);
+            } else {
+                gatherRequests();
+            }
+        }
+
+        private final ActionListener<DataStreamsStatsAction.Response> dataStreamsStatsResponseActionListener =
+            new ActionListener<DataStreamsStatsAction.Response>() {
+                @Override
+                public void onResponse(DataStreamsStatsAction.Response response) {
+                    dataStreamsStatsResponse = response;
+                    requestClusterSettings();
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    listener.onFailure(new OpenSearchException("Data streams stats request failed", e));
+                }
+            };
 
         private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
             new ActionListener<ClusterStateResponse>() {
@@ -181,10 +206,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(IndicesStatsResponse response) {
                     indicesStatsResponse = response;
-                    if (isPrometheusClusterSettings) {
-                        client.admin().cluster().state(clusterStateRequest, clusterStateResponseActionListener);
+                    if (isPrometheusDataStreams) {
+                        // Covers all data streams; like the indices stats it is broadcast to the shards of their
+                        // backing indices.
+                        client.execute(DataStreamsStatsAction.INSTANCE, new DataStreamsStatsAction.Request(),
+                                dataStreamsStatsResponseActionListener);
                     } else {
-                        gatherRequests();
+                        requestClusterSettings();
                     }
                 }
 
@@ -248,12 +276,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                                                               NodesInfoResponse localNodesInfoResponse,
                                                               NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
-                                                              @Nullable ClusterStateResponse clusterStateResponse) {
+                                                              @Nullable ClusterStateResponse clusterStateResponse,
+                                                              @Nullable DataStreamsStatsAction.Response dataStreamsStats) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
                     nodesStats.getNodes().toArray(new NodeStats[0]),
-                    indicesStats, clusterStateResponse,
+                    indicesStats, clusterStateResponse, dataStreamsStats,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);
