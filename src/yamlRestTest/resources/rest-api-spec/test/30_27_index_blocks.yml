@@ -1,0 +1,146 @@
+# Test that index blocks are exposed as index level metrics.
+---
+"Index blocks":
+
+  - do:
+      indices.create:
+        index: twitter
+
+  - do:
+      indices.create:
+        index: facebook
+
+  - do:
+      cluster.health:
+        wait_for_status: green
+
+  # No blocks are set yet
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="(twitter|facebook)",
+            block="(read_only_allow_delete|read_only|write)",
+        \} \s+ 0\.0 \n?){6}
+        .*/
+
+  # Simulate the block set when a node exceeds the flood stage disk watermark
+  - do:
+      indices.put_settings:
+        index: twitter
+        body:
+          index.blocks.read_only_allow_delete: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="twitter",
+            block="read_only_allow_delete",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="facebook",
+            block="read_only_allow_delete",
+        \} \s+ 0\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="twitter",
+            block="read_only",
+        \} \s+ 0\.0 \n?
+        .*/
+
+  # Manually set blocks are reported as well
+  - do:
+      indices.put_settings:
+        index: facebook
+        body:
+          index.blocks.write: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="facebook",
+            block="write",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  # Removing the blocks resets the metric
+  - do:
+      indices.put_settings:
+        index: twitter
+        body:
+          index.blocks.read_only_allow_delete: null
+
+  - do:
+      indices.put_settings:
+        index: facebook
+        body:
+          index.blocks.write: null
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="(twitter|facebook)",
+            block="(read_only_allow_delete|read_only|write)",
+        \} \s+ 0\.0 \n?){6}
+        .*/
+
+  # Index blocks depend on index level metrics
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: false
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_blocks_bool (\s|\w|\d|\?)+ \n
+        \# \s TYPE \s opensearch_index_blocks_bool \s gauge \n
+        (?!opensearch_index_blocks_bool)
+        .*/
+
+  # Test clean up...
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: null
+        flat_settings: true
+
+  - do:
+      indices.delete:
+        index: twitter,facebook

@@ -55,6 +55,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
     private ClusterStatsData clusterStatsData = null;
+    @Nullable private final IndexBlocksData indexBlocksData;
 
     /**
      * A constructor that materializes the instance from {@link StreamInput}.
@@ -68,6 +69,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
         clusterStatsData = new ClusterStatsData(in);
+        indexBlocksData = in.readOptionalWriteable(IndexBlocksData::new);
     }
 
     /**
@@ -77,6 +79,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
+     * @param indexBlocksResponse ClusterStateResponse holding the cluster blocks
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -85,6 +88,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
+                                         @Nullable ClusterStateResponse indexBlocksResponse,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
@@ -94,6 +98,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
+        this.indexBlocksData = indexBlocksResponse == null ? null : new IndexBlocksData(indexBlocksResponse.getState().blocks());
     }
 
     /**
@@ -136,6 +141,15 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         return this.clusterStatsData;
     }
 
+    /**
+     * Get internal {@link IndexBlocksData} object.
+     * @return IndexBlocksData object
+     */
+    @Nullable
+    public IndexBlocksData getIndexBlocksData() {
+        return this.indexBlocksData;
+    }
+
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         clusterHealth.writeTo(out);
@@ -143,5 +157,6 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
         clusterStatsData.writeTo(out);
+        out.writeOptionalWriteable(indexBlocksData);
     }
 }

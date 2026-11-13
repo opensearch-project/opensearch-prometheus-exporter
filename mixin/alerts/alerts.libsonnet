@@ -101,6 +101,20 @@
               message: 'Disk High Watermark Reached at {{ $labels.node }} node in {{ $labels.cluster }} cluster. Some shards will be re-allocated to different nodes if possible. Make sure more disk space is added to the node or drop old indices allocated to this node.',
             },
           },
+          {
+            alert: 'OpenSearchIndexReadOnlyAllowDelete',
+            expr: |||
+              max by (cluster, index) (opensearch_index_blocks_bool{block="read_only_allow_delete"}) == 1
+            |||,
+            'for': '5m',
+            labels: {
+              severity: 'critical',
+            },
+            annotations: {
+              summary: 'Index is read-only (flood stage watermark)',
+              message: 'Index {{ $labels.index }} in {{ $labels.cluster }} cluster has the read_only_allow_delete block and rejects writes. This block is set when a node holding its shards exceeds the flood stage disk watermark. Free up disk space; the block is released automatically once disk usage drops below the high watermark.',
+            },
+          },
 
           // Remaining space on the node:
           //   sum by (cluster, instance, node) (opensearch_fs_path_free_bytes)

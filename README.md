@@ -47,6 +47,26 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
+### Index blocks
+
+When [index level metrics](#index-level-metrics) are enabled, the exporter reports whether an index has one
+of the following blocks set, using `opensearch_index_blocks_bool` (with the default `opensearch_` prefix).
+The value is `1` if the block is set and `0` otherwise, and the `block` label is one of:
+
+| `block` | Set by | Effect |
+| --- | --- | --- |
+| `read_only_allow_delete` | OpenSearch, when a node holding the index's shards exceeds the [flood stage disk watermark](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings), or manually | Writes are rejected, deleting the index is allowed. Released automatically once disk usage drops below the high watermark. |
+| `read_only` | Manually or by ISM (for example the `read_only` action) | Writes and metadata changes are rejected |
+| `write` | Manually | Writes are rejected |
+
+Every index selected by the [indices filter](#indices-filter) reports all three blocks, with the `cluster`,
+`index` and `block` labels. For example, to alert when an index stops accepting writes because of the flood stage
+watermark:
+
+```
+max by (cluster, index) (opensearch_index_blocks_bool{block="read_only_allow_delete"}) == 1
+```
+
 ### Search backpressure metrics
 
 The exporter exposes the statistics from `/_nodes/stats/search_backpressure` using the
