@@ -107,14 +107,14 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private final NodesStatsRequest nodesStatsRequest;
         private final IndicesStatsRequest indicesStatsRequest;
         private final ClusterStateRequest clusterStateRequest;
-        private final ClusterStateRequest indexBlocksRequest;
+        private final ClusterStateRequest blocksRequest;
 
         private ClusterHealthResponse clusterHealthResponse = null;
         private NodesInfoResponse localNodesInfoResponse = null;
         private NodesStatsResponse nodesStatsResponse = null;
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
-        private ClusterStateResponse indexBlocksResponse = null;
+        private ClusterStateResponse blocksResponse = null;
 
         // read the state of prometheus dynamic settings only once at the beginning of the async request
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
@@ -154,10 +154,9 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 this.indicesStatsRequest = null;
             }
 
-            // Index blocks come from the local cluster state like the cluster health above. Only indices
+            // Cluster and index blocks come from the local cluster state like the cluster health above. Only indices
             // that have a block are listed there, so this response stays small even for large clusters.
-            this.indexBlocksRequest = isPrometheusIndices ? Requests.clusterStateRequest()
-                    .clear().blocks(true).local(true) : null;
+            this.blocksRequest = Requests.clusterStateRequest().clear().blocks(true).local(true);
 
             // Cluster settings are pulled from the cluster manager node (hence local=false).
             this.clusterStateRequest = isPrometheusClusterSettings ? Requests.clusterStateRequest()
@@ -166,7 +165,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
         private void gatherRequests() {
             listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse, nodesStatsResponse, indicesStatsResponse,
-                    clusterStateResponse, indexBlocksResponse));
+                    clusterStateResponse, blocksResponse));
         }
 
         private void requestClusterSettings() {
@@ -177,17 +176,17 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
             }
         }
 
-        private final ActionListener<ClusterStateResponse> indexBlocksResponseActionListener =
+        private final ActionListener<ClusterStateResponse> blocksResponseActionListener =
             new ActionListener<ClusterStateResponse>() {
                 @Override
                 public void onResponse(ClusterStateResponse response) {
-                    indexBlocksResponse = response;
+                    blocksResponse = response;
                     requestClusterSettings();
                 }
 
                 @Override
                 public void onFailure(Exception e) {
-                    listener.onFailure(new OpenSearchException("Cluster state request for index blocks failed", e));
+                    listener.onFailure(new OpenSearchException("Cluster state request for blocks failed", e));
                 }
             };
 
@@ -210,11 +209,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(IndicesStatsResponse response) {
                     indicesStatsResponse = response;
-                    if (isPrometheusIndices) {
-                        client.admin().cluster().state(indexBlocksRequest, indexBlocksResponseActionListener);
-                    } else {
-                        requestClusterSettings();
-                    }
+                    client.admin().cluster().state(blocksRequest, blocksResponseActionListener);
                 }
 
                 @Override
@@ -278,12 +273,12 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                                                               NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
                                                               @Nullable ClusterStateResponse clusterStateResponse,
-                                                              @Nullable ClusterStateResponse indexBlocksResponse) {
+                                                              @Nullable ClusterStateResponse blocksResponse) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
                     nodesStats.getNodes().toArray(new NodeStats[0]),
-                    indicesStats, clusterStateResponse, indexBlocksResponse,
+                    indicesStats, clusterStateResponse, blocksResponse,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);

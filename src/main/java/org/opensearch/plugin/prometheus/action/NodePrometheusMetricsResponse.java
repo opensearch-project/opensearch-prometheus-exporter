@@ -55,7 +55,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
     private ClusterStatsData clusterStatsData = null;
-    @Nullable private final IndexBlocksData indexBlocksData;
+    @Nullable private final BlocksData blocksData;
 
     /**
      * A constructor that materializes the instance from {@link StreamInput}.
@@ -69,7 +69,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
         clusterStatsData = new ClusterStatsData(in);
-        indexBlocksData = in.readOptionalWriteable(IndexBlocksData::new);
+        blocksData = in.readOptionalWriteable(BlocksData::new);
     }
 
     /**
@@ -79,7 +79,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
-     * @param indexBlocksResponse ClusterStateResponse holding the cluster blocks
+     * @param blocksResponse ClusterStateResponse holding the cluster blocks
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -88,7 +88,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
-                                         @Nullable ClusterStateResponse indexBlocksResponse,
+                                         @Nullable ClusterStateResponse blocksResponse,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
@@ -98,7 +98,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
-        this.indexBlocksData = indexBlocksResponse == null ? null : new IndexBlocksData(indexBlocksResponse.getState().blocks());
+        this.blocksData = blocksResponse == null ? null : new BlocksData(blocksResponse.getState().blocks());
     }
 
     /**
@@ -142,12 +142,12 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     }
 
     /**
-     * Get internal {@link IndexBlocksData} object.
-     * @return IndexBlocksData object
+     * Get internal {@link BlocksData} object.
+     * @return BlocksData object
      */
     @Nullable
-    public IndexBlocksData getIndexBlocksData() {
-        return this.indexBlocksData;
+    public BlocksData getBlocksData() {
+        return this.blocksData;
     }
 
     @Override
@@ -157,6 +157,6 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
         clusterStatsData.writeTo(out);
-        out.writeOptionalWriteable(indexBlocksData);
+        out.writeOptionalWriteable(blocksData);
     }
 }

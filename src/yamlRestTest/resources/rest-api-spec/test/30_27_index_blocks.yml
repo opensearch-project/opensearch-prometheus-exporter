@@ -1,4 +1,4 @@
-# Test that index blocks are exposed as index level metrics.
+# Test that cluster and index blocks are exposed as metrics.
 ---
 "Index blocks":
 
@@ -24,8 +24,8 @@
         (opensearch_index_blocks_bool\{
             cluster="yamlRestTest",
             index="(twitter|facebook)",
-            block="(read_only_allow_delete|read_only|write)",
-        \} \s+ 0\.0 \n?){6}
+            block="(read_only_allow_delete|read_only|write|read|metadata)",
+        \} \s+ 0\.0 \n?){10}
         .*/
 
   # Simulate the block set when a node exceeds the flood stage disk watermark
@@ -76,6 +76,12 @@
           index.blocks.write: true
 
   - do:
+      indices.put_settings:
+        index: facebook
+        body:
+          index.blocks.read: true
+
+  - do:
       prometheus.metrics: {}
 
   - match:
@@ -88,12 +94,29 @@
         \} \s+ 1\.0 \n?
         .*/
 
-  # Removing the blocks resets the metric
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="facebook",
+            block="read",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  # Removing the blocks resets the metric. An index with the read_only_allow_delete block only
+  # accepts a settings update that removes that block, so remove them one at a time.
   - do:
       indices.put_settings:
         index: twitter
         body:
           index.blocks.read_only_allow_delete: null
+
+  - do:
+      indices.put_settings:
+        index: facebook
+        body:
+          index.blocks.read: null
 
   - do:
       indices.put_settings:
@@ -110,8 +133,8 @@
         (opensearch_index_blocks_bool\{
             cluster="yamlRestTest",
             index="(twitter|facebook)",
-            block="(read_only_allow_delete|read_only|write)",
-        \} \s+ 0\.0 \n?){6}
+            block="(read_only_allow_delete|read_only|write|read|metadata)",
+        \} \s+ 0\.0 \n?){10}
         .*/
 
   # Index blocks depend on index level metrics
@@ -144,3 +167,83 @@
   - do:
       indices.delete:
         index: twitter,facebook
+
+---
+"Cluster blocks":
+
+  # No blocks are set yet
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_cluster_blocks_bool\{
+            cluster="yamlRestTest",
+            block="(read_only|read_only_allow_delete|create_index)",
+        \} \s+ 0\.0 \n?){3}
+        .*/
+
+  # Cluster blocks do not depend on index level metrics. Disable them before setting the block,
+  # because a read-only cluster only accepts settings updates that change the block itself.
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: false
+        flat_settings: true
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.blocks.read_only: true
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_cluster_blocks_bool\{
+            cluster="yamlRestTest",
+            block="read_only",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        opensearch_cluster_blocks_bool\{
+            cluster="yamlRestTest",
+            block="create_index",
+        \} \s+ 0\.0 \n?
+        .*/
+
+  # Test clean up...
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            cluster.blocks.read_only: null
+        flat_settings: true
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: null
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_cluster_blocks_bool\{
+            cluster="yamlRestTest",
+            block="(read_only|read_only_allow_delete|create_index)",
+        \} \s+ 0\.0 \n?){3}
+        .*/

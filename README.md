@@ -47,21 +47,32 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
-### Index blocks
+### Cluster and index blocks
 
-When [index level metrics](#index-level-metrics) are enabled, the exporter reports whether an index has one
-of the following blocks set, using `opensearch_index_blocks_bool` (with the default `opensearch_` prefix).
-The value is `1` if the block is set and `0` otherwise, and the `block` label is one of:
+The exporter reports whether [cluster or index blocks](https://docs.opensearch.org/latest/api-reference/index-apis/blocks/)
+are set, as `1` if the block is set and `0` otherwise (metric names below use the default `opensearch_` prefix).
+
+`opensearch_cluster_blocks_bool` has a `block` label for each block set by the `cluster.blocks.*` settings:
+
+| `block` | Set by | Effect |
+| --- | --- | --- |
+| `read_only` | Manually (`cluster.blocks.read_only`) | Writes and metadata changes are rejected for all indices |
+| `read_only_allow_delete` | Manually (`cluster.blocks.read_only_allow_delete`) | Writes are rejected for all indices, deleting indices is allowed |
+| `create_index` | Manually, or by OpenSearch when all data nodes exceed the high disk watermark (`cluster.blocks.create_index`) | New indices cannot be created |
+
+When [index level metrics](#index-level-metrics) are enabled, `opensearch_index_blocks_bool` has `index` and
+`block` labels for each block set by the `index.blocks.*` settings:
 
 | `block` | Set by | Effect |
 | --- | --- | --- |
 | `read_only_allow_delete` | OpenSearch, when a node holding the index's shards exceeds the [flood stage disk watermark](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings), or manually | Writes are rejected, deleting the index is allowed. Released automatically once disk usage drops below the high watermark. |
 | `read_only` | Manually or by ISM (for example the `read_only` action) | Writes and metadata changes are rejected |
 | `write` | Manually | Writes are rejected |
+| `read` | Manually | Reads are rejected |
+| `metadata` | Manually | Metadata reads and changes, such as mapping updates, are rejected |
 
-Every index selected by the [indices filter](#indices-filter) reports all three blocks, with the `cluster`,
-`index` and `block` labels. For example, to alert when an index stops accepting writes because of the flood stage
-watermark:
+Every index selected by the [indices filter](#indices-filter) reports all of these blocks.
+For example, to alert when an index stops accepting writes because of the flood stage watermark:
 
 ```
 max by (cluster, index) (opensearch_index_blocks_bool{block="read_only_allow_delete"}) == 1

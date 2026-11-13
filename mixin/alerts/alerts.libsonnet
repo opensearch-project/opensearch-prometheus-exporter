@@ -115,6 +115,20 @@
               message: 'Index {{ $labels.index }} in {{ $labels.cluster }} cluster has the read_only_allow_delete block and rejects writes. This block is set when a node holding its shards exceeds the flood stage disk watermark. Free up disk space; the block is released automatically once disk usage drops below the high watermark.',
             },
           },
+          {
+            alert: 'OpenSearchClusterBlocked',
+            expr: |||
+              max by (cluster, block) (opensearch_cluster_blocks_bool) == 1
+            |||,
+            'for': '5m',
+            labels: {
+              severity: 'critical',
+            },
+            annotations: {
+              summary: 'Cluster block {{ $labels.block }} is set',
+              message: 'Cluster {{ $labels.cluster }} has the {{ $labels.block }} cluster block set. With read_only or read_only_allow_delete, all indices reject writes. With create_index, new indices cannot be created; OpenSearch sets it when all data nodes exceed the high disk watermark.',
+            },
+          },
 
           // Remaining space on the node:
           //   sum by (cluster, instance, node) (opensearch_fs_path_free_bytes)

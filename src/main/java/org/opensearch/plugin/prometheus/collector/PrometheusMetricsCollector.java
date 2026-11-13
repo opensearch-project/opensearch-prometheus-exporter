@@ -31,7 +31,7 @@
 package org.opensearch.plugin.prometheus.collector;
 
 import org.opensearch.plugin.prometheus.action.ClusterStatsData;
-import org.opensearch.plugin.prometheus.action.IndexBlocksData;
+import org.opensearch.plugin.prometheus.action.BlocksData;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.indices.stats.CommonStats;
@@ -129,6 +129,8 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("cluster_is_timedout_bool", "Is the cluster timed out ?");
 
         catalog.registerClusterGauge("cluster_inflight_fetch_number", "Number of in flight fetches");
+
+        catalog.registerClusterGauge("cluster_blocks_bool", "Is the cluster block set ?", "block");
     }
 
     private void updateClusterMetrics(@Nullable ClusterHealthResponse chr) {
@@ -153,6 +155,14 @@ public class PrometheusMetricsCollector {
             catalog.setClusterGauge("cluster_is_timedout_bool", chr.isTimedOut() ? 1 : 0);
 
             catalog.setClusterGauge("cluster_inflight_fetch_number", chr.getNumberOfInFlightFetch());
+        }
+    }
+
+    private void updateClusterBlocksMetrics(@Nullable BlocksData blocks) {
+        if (blocks != null) {
+            for (String block : BlocksData.TRACKED_CLUSTER_BLOCKS.keySet()) {
+                catalog.setClusterGauge("cluster_blocks_bool", blocks.hasClusterBlock(block) ? 1 : 0, block);
+            }
         }
     }
 
@@ -487,7 +497,7 @@ public class PrometheusMetricsCollector {
     }
 
     private void updatePerIndexMetrics(@Nullable ClusterHealthResponse chr, @Nullable IndicesStatsResponse isr,
-                                       @Nullable IndexBlocksData ibd) {
+                                       @Nullable BlocksData blocks) {
 
         if (chr != null && isr != null) {
             for (Map.Entry<String, IndexStats> entry : isr.getIndices().entrySet()) {
@@ -502,9 +512,10 @@ public class PrometheusMetricsCollector {
                     catalog.setClusterGauge("index_shards_number", cih.getInitializingShards(), "initializing", indexName);
                     catalog.setClusterGauge("index_shards_number", cih.getRelocatingShards(), "relocating", indexName);
                     catalog.setClusterGauge("index_shards_number", cih.getUnassignedShards(), "unassigned", indexName);
-                    if (ibd != null) {
-                        for (String block : IndexBlocksData.TRACKED_BLOCKS.keySet()) {
-                            catalog.setClusterGauge("index_blocks_bool", ibd.hasBlock(indexName, block) ? 1 : 0, indexName, block);
+                    if (blocks != null) {
+                        for (String block : BlocksData.TRACKED_INDEX_BLOCKS.keySet()) {
+                            catalog.setClusterGauge("index_blocks_bool", blocks.hasIndexBlock(indexName, block) ? 1 : 0,
+                                    indexName, block);
                         }
                     }
                     IndexStats indexStats = entry.getValue();
@@ -1103,19 +1114,20 @@ public class PrometheusMetricsCollector {
      * @param nodeStats                 NodeStats filtered using nodes filter
      * @param indicesStats              IndicesStatsResponse
      * @param clusterStatsData          ClusterStatsData
-     * @param indexBlocksData           IndexBlocksData
+     * @param blocksData                BlocksData
      */
     public void updateMetrics(String originNodeName, String originNodeId,
                               @Nullable ClusterHealthResponse clusterHealthResponse,
                               NodeStats[] nodeStats,
                               @Nullable IndicesStatsResponse indicesStats,
                               @Nullable ClusterStatsData clusterStatsData,
-                              @Nullable IndexBlocksData indexBlocksData) {
+                              @Nullable BlocksData blocksData) {
         Summary.Timer timer = catalog.startSummaryTimer(
                 new Tuple<>(originNodeName, originNodeId),
                 "metrics_generate_time_seconds");
 
         updateClusterMetrics(clusterHealthResponse);
+        updateClusterBlocksMetrics(blocksData);
         for (NodeStats s : nodeStats) {
             // For each node we create specific context and pass it to all metrics
             String nodeName = s.getNode().getName();
@@ -1137,7 +1149,7 @@ public class PrometheusMetricsCollector {
             updateSearchBackpressureMetrics(nodeInfo, s.getSearchBackpressureStats());
         }
         if (isPrometheusIndices) {
-            updatePerIndexMetrics(clusterHealthResponse, indicesStats, indexBlocksData);
+            updatePerIndexMetrics(clusterHealthResponse, indicesStats, blocksData);
         }
         if (isPrometheusClusterSettings) {
             updateESSettings(clusterStatsData);
