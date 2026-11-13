@@ -45,6 +45,7 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - Circuit Breaker
     - Search Backpressure
 - Indices status
+- Shard status (opt-in, see [Shard level metrics](#shard-level-metrics))
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
 ### Search backpressure metrics
@@ -131,6 +132,33 @@ If you do not need detailed index level metrics **it is recommended to disable i
 
 ```
 prometheus.indices: false
+```
+
+#### Shard level metrics
+
+Whether to export shard level metrics or not. Default value: `false`.
+
+Shard level metrics are exported for every shard copy (primary and replica) of the indices selected by the
+[indices filter](#indices-filter), so they can produce many more time series than index level metrics.
+They are only exported when [index level metrics](#index-level-metrics) are enabled as well.
+
+To enable shard level metrics use:
+```
+prometheus.shards: true
+```
+
+| Metric | Value |
+| --- | --- |
+| `opensearch_index_shard_doc_number` | Number of documents in the shard copy |
+| `opensearch_index_shard_doc_deleted_number` | Number of deleted documents in the shard copy |
+| `opensearch_index_shard_store_size_bytes` | Store size of the shard copy in bytes |
+
+Every metric has the `cluster`, `index`, `shard` (shard number), `primary` (`true` or `false`) and `nodeid`
+(ID of the node holding the shard copy) labels.
+The document count is the Lucene document count of the shard, which includes nested documents. This makes it
+suitable for alerting before a shard reaches the Lucene limit of 2,147,483,519 documents per shard, for example:
+```
+max by (cluster, index, shard) (opensearch_index_shard_doc_number + opensearch_index_shard_doc_deleted_number) > 2e9
 ```
 
 #### Cluster settings

@@ -1,0 +1,136 @@
+# Test that shard level metrics are opt-in and can be enabled dynamically.
+---
+"Shard level metrics":
+
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+        filter_path: defaults.prometheus
+
+  - match: {defaults.prometheus.shards: "false"}
+
+  - do:
+      indices.create:
+        index: twitter
+        body:
+          settings:
+            index:
+              number_of_shards: 2
+              number_of_replicas: 1
+
+  - do:
+      index:
+        index:  twitter
+        id:     1
+        body:   { foo: bar }
+        refresh: true
+
+  - do:
+      cluster.health:
+        index: twitter
+        wait_for_status: green
+
+  # Shard level metrics are disabled by default
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_shard_doc_number (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_shard_doc_number \s gauge \n
+        (?!opensearch_index_shard_doc_number)
+        .*/
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.shards: true
+        flat_settings: true
+
+  - is_true: transient.prometheus\.shards
+
+  # Each shard copy has its own series
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_shard_doc_number\{
+            cluster="yamlRestTest",
+            index="twitter",
+            shard="[01]",
+            primary="true",
+            nodeid="[^"]+",
+        \} \s+ \d+\.\d+ \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_shard_doc_number\{
+            cluster="yamlRestTest",
+            index="twitter",
+            shard="[01]",
+            primary="false",
+            nodeid="[^"]+",
+        \} \s+ \d+\.\d+ \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_shard_doc_deleted_number\{
+            cluster="yamlRestTest",
+            index="twitter",
+            shard="[01]",
+            primary="(true|false)",
+            nodeid="[^"]+",
+        \} \s+ \d+\.\d+ \n?){4}
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        (opensearch_index_shard_store_size_bytes\{
+            cluster="yamlRestTest",
+            index="twitter",
+            shard="[01]",
+            primary="(true|false)",
+            nodeid="[^"]+",
+        \} \s+ \d+\.\d+(E\d+)? \n?){4}
+        .*/
+
+  # Shard level metrics depend on index level metrics
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: false
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_index_shard_doc_number (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_index_shard_doc_number \s gauge \n
+        (?!opensearch_index_shard_doc_number)
+        .*/
+
+  # Test clean up...
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.shards: null
+            prometheus.indices: null
+        flat_settings: true
+
+  - do:
+      indices.delete:
+        index: twitter
