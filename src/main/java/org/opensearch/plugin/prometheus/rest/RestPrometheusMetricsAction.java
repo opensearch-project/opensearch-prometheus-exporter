@@ -146,6 +146,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector = new PrometheusMetricsCollector(
                                     catalog,
                                     prometheusSettings.getPrometheusIndices(),
+                                    prometheusSettings.getPrometheusShards(),
                                     prometheusSettings.getPrometheusClusterSettings()
                             );
                             collector.registerMetrics();

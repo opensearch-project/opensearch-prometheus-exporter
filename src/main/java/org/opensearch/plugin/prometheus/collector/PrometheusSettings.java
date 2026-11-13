@@ -77,6 +77,7 @@ public class PrometheusSettings {
 
     static String PROMETHEUS_CLUSTER_SETTINGS_KEY = "prometheus.cluster.settings";
     static String PROMETHEUS_INDICES_KEY = "prometheus.indices";
+    static String PROMETHEUS_SHARDS_KEY = "prometheus.shards";
     static String PROMETHEUS_NODES_FILTER_KEY = "prometheus.nodes.filter";
     static String PROMETHEUS_SELECTED_INDICES_KEY = "prometheus.indices_filter.selected_indices";
     static String PROMETHEUS_SELECTED_OPTION_KEY = "prometheus.indices_filter.selected_option";
@@ -95,6 +96,15 @@ public class PrometheusSettings {
      */
     public static final Setting<Boolean> PROMETHEUS_INDICES =
             Setting.boolSetting(PROMETHEUS_INDICES_KEY, true,
+                    Setting.Property.Dynamic, Setting.Property.NodeScope);
+
+    /**
+     * This setting is used to configure whether to expose shard level metrics or not. The default value is false.
+     * Shard level metrics are only exported when {@link #PROMETHEUS_INDICES} is enabled as well.
+     * Can be configured in opensearch.yml file or update dynamically under key {@link #PROMETHEUS_SHARDS_KEY}.
+     */
+    public static final Setting<Boolean> PROMETHEUS_SHARDS =
+            Setting.boolSetting(PROMETHEUS_SHARDS_KEY, false,
                     Setting.Property.Dynamic, Setting.Property.NodeScope);
 
     /**
@@ -127,6 +137,7 @@ public class PrometheusSettings {
 
     private volatile boolean clusterSettings;
     private volatile boolean indices;
+    private volatile boolean shards;
     private volatile String nodesFilter;
     private volatile String selectedIndices;
     private volatile INDEX_FILTER_OPTIONS selectedOption;
@@ -139,11 +150,13 @@ public class PrometheusSettings {
     public PrometheusSettings(Settings settings, ClusterSettings clusterSettings) {
         setPrometheusClusterSettings(PROMETHEUS_CLUSTER_SETTINGS.get(settings));
         setPrometheusIndices(PROMETHEUS_INDICES.get(settings));
+        setPrometheusShards(PROMETHEUS_SHARDS.get(settings));
         setPrometheusNodesFilter(PROMETHEUS_NODES_FILTER.get(settings));
         setPrometheusSelectedIndices(PROMETHEUS_SELECTED_INDICES.get(settings));
         setPrometheusSelectedOption(PROMETHEUS_SELECTED_OPTION.get(settings));
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_CLUSTER_SETTINGS, this::setPrometheusClusterSettings);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_INDICES, this::setPrometheusIndices);
+        clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SHARDS, this::setPrometheusShards);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_NODES_FILTER, this::setPrometheusNodesFilter);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_INDICES, this::setPrometheusSelectedIndices);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_OPTION, this::setPrometheusSelectedOption);
@@ -155,6 +168,10 @@ public class PrometheusSettings {
 
     private void setPrometheusIndices(boolean flag) {
         this.indices = flag;
+    }
+
+    private void setPrometheusShards(boolean flag) {
+        this.shards = flag;
     }
 
     private void setPrometheusNodesFilter(String filter) { this.nodesFilter = filter; }
@@ -181,6 +198,14 @@ public class PrometheusSettings {
      */
     public boolean getPrometheusIndices() {
         return this.indices;
+    }
+
+    /**
+     * Get value of settings key {@link #PROMETHEUS_SHARDS_KEY}.
+     * @return boolean value of the key
+     */
+    public boolean getPrometheusShards() {
+        return this.shards;
     }
 
     /**
