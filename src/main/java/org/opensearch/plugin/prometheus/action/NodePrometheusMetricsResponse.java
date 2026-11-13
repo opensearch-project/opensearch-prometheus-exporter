@@ -43,6 +43,7 @@ import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Settings;
 
 import java.io.IOException;
+import java.util.Set;
 
 /**
  * Action response class for Prometheus Exporter plugin.
@@ -80,6 +81,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
      * @param blocksResponse ClusterStateResponse holding the cluster blocks
+     * @param indicesWithoutStats selected indices that were left out of the indices stats request
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -89,6 +91,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
                                          @Nullable ClusterStateResponse blocksResponse,
+                                         Set<String> indicesWithoutStats,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
@@ -98,7 +101,8 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
-        this.blocksData = blocksResponse == null ? null : new BlocksData(blocksResponse.getState().blocks());
+        this.blocksData = blocksResponse == null ? null : new BlocksData(blocksResponse.getState().blocks(),
+                indicesWithoutStats);
     }
 
     /**

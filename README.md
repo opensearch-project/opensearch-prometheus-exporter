@@ -72,6 +72,8 @@ When [index level metrics](#index-level-metrics) are enabled, `opensearch_index_
 | `metadata` | Manually | Metadata reads and changes, such as mapping updates, are rejected |
 
 Every index selected by the [indices filter](#indices-filter) reports all of these blocks.
+OpenSearch does not return index statistics for an index with the `metadata` block, so such an index only reports
+its blocks and is missing from the other index level metrics until the block is removed.
 For example, to alert when an index stops accepting writes because of the flood stage watermark:
 
 ```

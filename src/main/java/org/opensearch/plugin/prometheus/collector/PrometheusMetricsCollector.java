@@ -512,16 +512,26 @@ public class PrometheusMetricsCollector {
                     catalog.setClusterGauge("index_shards_number", cih.getInitializingShards(), "initializing", indexName);
                     catalog.setClusterGauge("index_shards_number", cih.getRelocatingShards(), "relocating", indexName);
                     catalog.setClusterGauge("index_shards_number", cih.getUnassignedShards(), "unassigned", indexName);
-                    if (blocks != null) {
-                        for (String block : BlocksData.TRACKED_INDEX_BLOCKS.keySet()) {
-                            catalog.setClusterGauge("index_blocks_bool", blocks.hasIndexBlock(indexName, block) ? 1 : 0,
-                                    indexName, block);
-                        }
-                    }
+                    updateIndexBlocksMetrics(indexName, blocks);
                     IndexStats indexStats = entry.getValue();
                     updatePerIndexContextMetrics(indexName, "total", indexStats.getTotal());
                     updatePerIndexContextMetrics(indexName, "primaries", indexStats.getPrimaries());
                 }
+            }
+        }
+        // Indices left out of the indices stats request because of a block have no stats, but their blocks are
+        // still reported so that they do not silently disappear from the metrics.
+        if (blocks != null) {
+            for (String indexName : blocks.getIndicesWithoutStats()) {
+                updateIndexBlocksMetrics(indexName, blocks);
+            }
+        }
+    }
+
+    private void updateIndexBlocksMetrics(String indexName, @Nullable BlocksData blocks) {
+        if (blocks != null) {
+            for (String block : BlocksData.TRACKED_INDEX_BLOCKS.keySet()) {
+                catalog.setClusterGauge("index_blocks_bool", blocks.hasIndexBlock(indexName, block) ? 1 : 0, indexName, block);
             }
         }
     }

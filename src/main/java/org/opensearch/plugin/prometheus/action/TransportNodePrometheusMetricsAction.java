@@ -47,6 +47,11 @@ import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.cluster.ClusterState;
+import org.opensearch.cluster.block.ClusterBlock;
+import org.opensearch.cluster.block.ClusterBlockLevel;
+import org.opensearch.cluster.metadata.IndexNameExpressionResolver;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.transport.client.Client;
 import org.opensearch.transport.client.Requests;
 import org.opensearch.common.Nullable;
@@ -56,6 +61,12 @@ import org.opensearch.common.settings.Settings;
 import org.opensearch.core.action.ActionListener;
 import org.opensearch.tasks.Task;
 import org.opensearch.transport.TransportService;
+
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Transport action class for Prometheus Exporter plugin.
@@ -70,6 +81,8 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
     private final Settings settings;
     private final ClusterSettings clusterSettings;
     private final PrometheusSettings prometheusSettings;
+    private final ClusterService clusterService;
+    private final IndexNameExpressionResolver indexNameExpressionResolver;
     private final Logger logger = LogManager.getLogger(getClass());
 
     /**
@@ -79,17 +92,22 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
      * @param transportService Transport service
      * @param actionFilters Action filters
      * @param clusterSettings Cluster settings
+     * @param clusterService Cluster service
+     * @param indexNameExpressionResolver Index name expression resolver
      */
     @Inject
     public TransportNodePrometheusMetricsAction(Settings settings, Client client,
                                                 TransportService transportService, ActionFilters actionFilters,
-                                                ClusterSettings clusterSettings) {
+                                                ClusterSettings clusterSettings, ClusterService clusterService,
+                                                IndexNameExpressionResolver indexNameExpressionResolver) {
         super(NodePrometheusMetricsAction.NAME, transportService, actionFilters,
                 NodePrometheusMetricsRequest::new);
         this.client = client;
         this.settings = settings;
         this.clusterSettings = clusterSettings;
         this.prometheusSettings = new PrometheusSettings(settings, clusterSettings);
+        this.clusterService = clusterService;
+        this.indexNameExpressionResolver = indexNameExpressionResolver;
     }
 
     @Override
@@ -115,6 +133,8 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
         private ClusterStateResponse blocksResponse = null;
+        // selected indices left out of the indices stats request because of a METADATA_READ block
+        private final Set<String> indicesWithoutStats = new HashSet<>();
 
         // read the state of prometheus dynamic settings only once at the beginning of the async request
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
@@ -165,7 +185,46 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
         private void gatherRequests() {
             listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse, nodesStatsResponse, indicesStatsResponse,
-                    clusterStateResponse, blocksResponse));
+                    clusterStateResponse, blocksResponse, indicesWithoutStats));
+        }
+
+        // The indices stats action rejects the whole request if any of the requested indices has a block at the
+        // METADATA_READ level (for example index.blocks.metadata), which would fail the whole scrape. Such indices
+        // are resolved from the local cluster state and left out of the request. Their blocks are still reported.
+        // See https://github.com/opensearch-project/opensearch-prometheus-exporter/issues/681
+        private void requestIndicesStats() {
+            IndicesStatsRequest request = indicesStatsRequest;
+            ClusterState state = clusterService.state();
+            Map<String, Set<ClusterBlock>> metadataBlocked = state.blocks().indices(ClusterBlockLevel.METADATA_READ);
+            if (metadataBlocked.isEmpty() == false) {
+                String[] concreteIndices;
+                try {
+                    concreteIndices = indexNameExpressionResolver.concreteIndexNames(state, indicesStatsRequest);
+                } catch (Exception e) {
+                    listener.onFailure(new OpenSearchException("Indices stats request failed", e));
+                    return;
+                }
+                List<String> remaining = new ArrayList<>();
+                for (String index : concreteIndices) {
+                    if (metadataBlocked.containsKey(index)) {
+                        indicesWithoutStats.add(index);
+                    } else {
+                        remaining.add(index);
+                    }
+                }
+                if (indicesWithoutStats.isEmpty() == false) {
+                    logger.debug("Skipping indices stats for indices with a metadata read block: {}", indicesWithoutStats);
+                    if (remaining.isEmpty()) {
+                        // An empty indices list would mean all indices, so skip the request instead.
+                        indicesStatsResponseActionListener.onResponse(null);
+                        return;
+                    }
+                    request = new IndicesStatsRequest();
+                    request.indices(remaining.toArray(new String[0]));
+                    request.indicesOptions(indicesStatsRequest.indicesOptions());
+                }
+            }
+            client.admin().indices().stats(request, indicesStatsResponseActionListener);
         }
 
         private void requestClusterSettings() {
@@ -224,7 +283,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 public void onResponse(NodesStatsResponse nodeStats) {
                     nodesStatsResponse = nodeStats;
                     if (isPrometheusIndices) {
-                        client.admin().indices().stats(indicesStatsRequest, indicesStatsResponseActionListener);
+                        requestIndicesStats();
                     } else {
                         indicesStatsResponseActionListener.onResponse(null);
                     }
@@ -273,12 +332,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                                                               NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
                                                               @Nullable ClusterStateResponse clusterStateResponse,
-                                                              @Nullable ClusterStateResponse blocksResponse) {
+                                                              @Nullable ClusterStateResponse blocksResponse,
+                                                              Set<String> indicesWithoutStats) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
                     nodesStats.getNodes().toArray(new NodeStats[0]),
-                    indicesStats, clusterStateResponse, blocksResponse,
+                    indicesStats, clusterStateResponse, blocksResponse, indicesWithoutStats,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);

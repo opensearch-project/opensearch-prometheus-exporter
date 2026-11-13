@@ -64,12 +64,23 @@ public class BlocksData implements Writeable {
     private final Set<String> clusterBlocks;
     // index name -> names of tracked blocks set on the index; indices without any tracked block are omitted
     private final Map<String, Set<String>> indexBlocks;
+    // selected indices that were left out of the indices stats request because of a block
+    private final Set<String> indicesWithoutStats;
 
     /**
      * Extracts the tracked blocks from the cluster state blocks.
      * @param blocks {@link ClusterBlocks} from the cluster state
      */
     public BlocksData(ClusterBlocks blocks) {
+        this(blocks, Collections.emptySet());
+    }
+
+    /**
+     * Extracts the tracked blocks from the cluster state blocks.
+     * @param blocks {@link ClusterBlocks} from the cluster state
+     * @param indicesWithoutStats selected indices that were left out of the indices stats request because of a block
+     */
+    public BlocksData(ClusterBlocks blocks, Set<String> indicesWithoutStats) {
         Set<String> cluster = new HashSet<>();
         for (Map.Entry<String, ClusterBlock> tracked : TRACKED_CLUSTER_BLOCKS.entrySet()) {
             if (blocks.hasGlobalBlock(tracked.getValue())) {
@@ -90,6 +101,7 @@ public class BlocksData implements Writeable {
         }
         this.clusterBlocks = cluster;
         this.indexBlocks = indices;
+        this.indicesWithoutStats = new HashSet<>(indicesWithoutStats);
     }
 
     /**
@@ -100,12 +112,14 @@ public class BlocksData implements Writeable {
     public BlocksData(StreamInput in) throws IOException {
         this.clusterBlocks = new HashSet<>(in.readStringList());
         this.indexBlocks = in.readMap(StreamInput::readString, i -> new HashSet<>(i.readStringList()));
+        this.indicesWithoutStats = new HashSet<>(in.readStringList());
     }
 
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         out.writeStringCollection(clusterBlocks);
         out.writeMap(indexBlocks, StreamOutput::writeString, StreamOutput::writeStringCollection);
+        out.writeStringCollection(indicesWithoutStats);
     }
 
     /**
@@ -115,6 +129,15 @@ public class BlocksData implements Writeable {
      */
     public boolean hasClusterBlock(String block) {
         return clusterBlocks.contains(block);
+    }
+
+    /**
+     * Selected indices that were left out of the indices stats request because of a block, so they have no
+     * index level stats but their blocks are still reported.
+     * @return index names
+     */
+    public Set<String> getIndicesWithoutStats() {
+        return Collections.unmodifiableSet(indicesWithoutStats);
     }
 
     /**

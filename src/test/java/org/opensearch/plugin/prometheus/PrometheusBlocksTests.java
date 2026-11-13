@@ -150,6 +150,50 @@ public class PrometheusBlocksTests extends OpenSearchTestCase {
         assertTrue(samples(text, "opensearch_index_blocks_bool{").isEmpty());
     }
 
+    public void testIndicesWithoutStatsStillReportBlocks() throws IOException {
+        BlocksData data = new BlocksData(ClusterBlocks.builder()
+                .addIndexBlock("locked", IndexMetadata.INDEX_METADATA_BLOCK)
+                .build(), Set.of("locked"));
+
+        String text = collect(true, data, "healthy");
+
+        assertIndexSamples(text, "locked", "metadata");
+        assertIndexSamples(text, "healthy");
+        // The skipped index has no other index level metrics.
+        assertTrue(samples(text, "opensearch_index_status{").stream().noneMatch(line -> line.contains("index=\"locked\"")));
+        assertEquals(1, samples(text, "opensearch_index_status{").size());
+    }
+
+    public void testIndicesWithoutStatsWhenAllIndicesAreSkipped() throws IOException {
+        BlocksData data = new BlocksData(ClusterBlocks.builder()
+                .addIndexBlock("locked", IndexMetadata.INDEX_METADATA_BLOCK)
+                .build(), Set.of("locked"));
+
+        String text = collectWithoutIndicesStats(data);
+
+        assertIndexSamples(text, "locked", "metadata");
+        assertTrue(samples(text, "opensearch_index_status{").isEmpty());
+    }
+
+    public void testIndicesWithoutStatsRequireIndexMetrics() throws IOException {
+        BlocksData data = new BlocksData(ClusterBlocks.builder()
+                .addIndexBlock("locked", IndexMetadata.INDEX_METADATA_BLOCK)
+                .build(), Set.of("locked"));
+
+        assertTrue(samples(collect(false, data), "opensearch_index_blocks_bool{").isEmpty());
+    }
+
+    public void testIndicesWithoutStatsSerialization() throws IOException {
+        BlocksData data = new BlocksData(ClusterBlocks.builder()
+                .addIndexBlock("locked", IndexMetadata.INDEX_METADATA_BLOCK)
+                .build(), Set.of("locked"));
+        try (BytesStreamOutput out = new BytesStreamOutput()) {
+            data.writeTo(out);
+            assertEquals(Set.of("locked"), new BlocksData(out.bytes().streamInput()).getIndicesWithoutStats());
+        }
+        assertTrue(new BlocksData(ClusterBlocks.builder().build()).getIndicesWithoutStats().isEmpty());
+    }
+
     public void testMissingBlocksDataIsIgnored() throws IOException {
         String text = collect(true, null, "full");
         assertTrue(samples(text, "opensearch_index_blocks_bool{").isEmpty());
@@ -186,6 +230,18 @@ public class PrometheusBlocksTests extends OpenSearchTestCase {
                 new PrometheusMetricsCatalog("test-cluster", "opensearch_"), indices, false);
         collector.registerMetrics();
         collector.updateMetrics("origin", "origin-id", clusterHealth, new NodeStats[0], indicesStats, null, data);
+        return collector.getTextContent();
+    }
+
+    private static String collectWithoutIndicesStats(BlocksData data) throws IOException {
+        ClusterHealthResponse clusterHealth = mock(ClusterHealthResponse.class);
+        when(clusterHealth.getIndices()).thenReturn(Map.of());
+        when(clusterHealth.getStatus()).thenReturn(ClusterHealthStatus.GREEN);
+        when(clusterHealth.getTaskMaxWaitingTime()).thenReturn(TimeValue.ZERO);
+        PrometheusMetricsCollector collector = new PrometheusMetricsCollector(
+                new PrometheusMetricsCatalog("test-cluster", "opensearch_"), true, false);
+        collector.registerMetrics();
+        collector.updateMetrics("origin", "origin-id", clusterHealth, new NodeStats[0], null, null, data);
         return collector.getTextContent();
     }
 
