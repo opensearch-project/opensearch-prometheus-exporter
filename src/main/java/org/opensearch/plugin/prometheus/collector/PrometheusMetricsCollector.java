@@ -38,6 +38,7 @@ import org.opensearch.action.admin.indices.stats.IndexStats;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
+import org.opensearch.cluster.routing.WeightedRoutingStats;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.xcontent.XContentHelper;
@@ -110,6 +111,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerSearchBackpressureMetrics();
+        registerWeightedRoutingMetrics();
         registerESSettings();
     }
 
@@ -1027,6 +1029,17 @@ public class PrometheusMetricsCollector {
         }
     }
 
+    private void registerWeightedRoutingMetrics() {
+        catalog.registerNodeGauge("weighted_routing_fail_open_count",
+                "Number of times weighted routing failed open for search requests");
+    }
+
+    private void updateWeightedRoutingMetrics(Tuple<String, String> nodeInfo, @Nullable WeightedRoutingStats stats) {
+        if (stats != null) {
+            catalog.setNodeGauge(nodeInfo, "weighted_routing_fail_open_count", stats.getFailOpenCount());
+        }
+    }
+
     @SuppressWarnings("checkstyle:LineLength")
     private void registerESSettings() {
         catalog.registerClusterGauge("cluster_routing_allocation_disk_threshold_enabled", "Disk allocation decider is enabled");
@@ -1105,6 +1118,7 @@ public class PrometheusMetricsCollector {
             updateOsMetrics(nodeInfo, s.getOs());
             updateFsMetrics(nodeInfo, s.getFs());
             updateSearchBackpressureMetrics(nodeInfo, s.getSearchBackpressureStats());
+            updateWeightedRoutingMetrics(nodeInfo, s.getWeightedRoutingStats());
         }
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
