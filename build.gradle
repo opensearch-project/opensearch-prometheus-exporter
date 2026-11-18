@@ -147,9 +147,9 @@ task integTest(type: RestIntegTestTask) {
     description = "Run tests against a cluster"
     testClassesDirs = sourceSets.test.output.classesDirs
     classpath = sourceSets.test.runtimeClasspath
-    filter {
-        excludeTestsMatching "org.opensearch.plugin.bwc.*IT"
-    }
+    // Exclude by class file rather than by test name filter: a name filter still
+    // loads the class, whose static init requires the BWC system properties.
+    exclude 'org/opensearch/plugin/bwc/**'
 }
 tasks.named("check").configure { dependsOn(integTest) }
 
