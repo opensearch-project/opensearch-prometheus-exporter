@@ -50,14 +50,10 @@ import org.opensearch.common.network.NetworkAddress;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.Setting;
 import org.opensearch.common.settings.Settings;
+import org.opensearch.core.common.bytes.BytesReference;
 import org.opensearch.core.rest.RestStatus;
 import org.opensearch.rest.action.RestResponseListener;
 
-import io.prometheus.client.exporter.common.TextFormat;
-
-import java.io.IOException;
-import java.io.StringWriter;
-import java.io.Writer;
 import java.util.List;
 import java.util.Locale;
 
@@ -140,7 +136,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             logger.trace("Preparing metrics output on node: [{}], [{}]", nodeName, nodeId);
                         }
                         PrometheusMetricsCollector collector;
-                        String textContent;
+                        BytesReference content;
                         try {
                             PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, metricPrefix);
                             collector = new PrometheusMetricsCollector(
@@ -152,7 +148,11 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
                                     response.getIndicesStats(), response.getClusterStatsData());
-                            textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
+                            // The action filter accumulates its metrics across requests, so it keeps its own long-lived
+                            // registry rather than the per-request one owned by the catalog. Registering a view of it
+                            // with the catalog renders both as one document, and fails if they share a metric name.
+                            catalog.registerCollector(actionFilter.collector(clusterName, nodeName, nodeId));
+                            content = collector.getTextContentBytes();
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
                             // and dump it into the log, otherwise client needs to know how to configure logging to output
@@ -168,17 +168,8 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         // Prometheus' metrics are exposed similarly the Pushgateway example except no real gateway
                         // is used and the metrics are exposed directly via OpenSearch HTTP API instead.
                         // See https://github.com/prometheus/client_java#exporting-to-a-pushgateway
-                        return new BytesRestResponse(RestStatus.OK, textContent);
+                        return new BytesRestResponse(RestStatus.OK, BytesRestResponse.TEXT_CONTENT_TYPE, content);
                     }
                 });
-    }
-
-    // The action filter accumulates its metrics across requests, so it keeps its own long-lived registry
-    // rather than the per-request one owned by the catalog. Both are rendered in the same text format
-    // response; concatenating is safe because the two registries do not share metric names.
-    private String actionMetricsTextContent(String clusterName, String nodeName, String nodeId) throws IOException {
-        Writer writer = new StringWriter();
-        TextFormat.write004(writer, actionFilter.metricFamilySamples(clusterName, nodeName, nodeId));
-        return writer.toString();
     }
 }
