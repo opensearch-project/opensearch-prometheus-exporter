@@ -1,0 +1,16 @@
+# The cluster_uuid label identifies a cluster uniquely, unlike the cluster name. It is
+# expected right after the cluster label on every metric. A cluster UUID is 22 URL-safe
+# base64 characters, which also rules out the "_na_" placeholder of a node without a cluster.
+---
+"Metrics carry the cluster_uuid label":
+
+  - do:
+      prometheus.metrics: {}
+
+  # Cluster level metric.
+  - match:
+      $body: /.*opensearch_cluster_status\{cluster="yamlRestTest",cluster_uuid="[A-Za-z0-9_-]{22}",\} .*/
+
+  # Node level metric.
+  - match:
+      $body: /.*opensearch_jvm_uptime_seconds\{cluster="yamlRestTest",cluster_uuid="[A-Za-z0-9_-]{22}",node="[^"]+",nodeid="[^"]+",\} .*/
