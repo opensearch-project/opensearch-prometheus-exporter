@@ -33,6 +33,7 @@ package org.opensearch.plugin.prometheus.collector;
 import org.opensearch.plugin.prometheus.action.ClusterStatsData;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
+import org.opensearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.opensearch.action.admin.indices.stats.CommonStats;
 import org.opensearch.action.admin.indices.stats.IndexStats;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
@@ -54,6 +55,7 @@ import org.opensearch.monitor.jvm.JvmStats;
 import org.opensearch.monitor.os.OsStats;
 import org.opensearch.monitor.process.ProcessStats;
 import org.opensearch.script.ScriptStats;
+import org.opensearch.tasks.TaskInfo;
 import org.opensearch.search.backpressure.settings.SearchBackpressureMode;
 import org.opensearch.search.backpressure.stats.SearchBackpressureStats;
 import org.opensearch.threadpool.ThreadPoolStats;
@@ -110,6 +112,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerSearchBackpressureMetrics();
+        registerTaskMetrics();
         registerESSettings();
     }
 
@@ -1027,6 +1030,37 @@ public class PrometheusMetricsCollector {
         }
     }
 
+    private void registerTaskMetrics() {
+        catalog.registerNodeGauge("tasks_number", "Number of tasks currently running on the node, by action", "action");
+    }
+
+    private void updateTaskMetrics(NodeStats[] nodeStats, @Nullable ListTasksResponse listTasks) {
+        if (listTasks == null) {
+            return;
+        }
+
+        // Report tasks only for nodes we also have stats for, so that node and nodeid labels stay consistent.
+        Map<String, Tuple<String, String>> nodeInfoById = new HashMap<>();
+        for (NodeStats s : nodeStats) {
+            nodeInfoById.put(s.getNode().getId(), new Tuple<>(s.getNode().getName(), s.getNode().getId()));
+        }
+
+        for (Map.Entry<String, List<TaskInfo>> nodeTasks : listTasks.getPerNodeTasks().entrySet()) {
+            Tuple<String, String> nodeInfo = nodeInfoById.get(nodeTasks.getKey());
+            if (nodeInfo == null) {
+                continue;
+            }
+            // Labels come only from OpenSearch transport action names (a bounded set), never task IDs or descriptions.
+            Map<String, Long> countByAction = new HashMap<>();
+            for (TaskInfo task : nodeTasks.getValue()) {
+                countByAction.merge(task.getAction(), 1L, Long::sum);
+            }
+            for (Map.Entry<String, Long> entry : countByAction.entrySet()) {
+                catalog.setNodeGauge(nodeInfo, "tasks_number", entry.getValue(), entry.getKey());
+            }
+        }
+    }
+
     @SuppressWarnings("checkstyle:LineLength")
     private void registerESSettings() {
         catalog.registerClusterGauge("cluster_routing_allocation_disk_threshold_enabled", "Disk allocation decider is enabled");
@@ -1081,6 +1115,26 @@ public class PrometheusMetricsCollector {
                               NodeStats[] nodeStats,
                               @Nullable IndicesStatsResponse indicesStats,
                               @Nullable ClusterStatsData clusterStatsData) {
+        updateMetrics(originNodeName, originNodeId, clusterHealthResponse, nodeStats, indicesStats, null, clusterStatsData);
+    }
+
+    /**
+     * Update all metrics, including task metrics.
+     *
+     * @param originNodeName            Originating node name.
+     * @param originNodeId              Originating node ID.
+     * @param clusterHealthResponse     ClusterHealthResponse
+     * @param nodeStats                 NodeStats filtered using nodes filter
+     * @param indicesStats              IndicesStatsResponse
+     * @param listTasks                 ListTasksResponse filtered using nodes filter, or null when task metrics are disabled
+     * @param clusterStatsData          ClusterStatsData
+     */
+    public void updateMetrics(String originNodeName, String originNodeId,
+                              @Nullable ClusterHealthResponse clusterHealthResponse,
+                              NodeStats[] nodeStats,
+                              @Nullable IndicesStatsResponse indicesStats,
+                              @Nullable ListTasksResponse listTasks,
+                              @Nullable ClusterStatsData clusterStatsData) {
         Summary.Timer timer = catalog.startSummaryTimer(
                 new Tuple<>(originNodeName, originNodeId),
                 "metrics_generate_time_seconds");
@@ -1106,6 +1160,7 @@ public class PrometheusMetricsCollector {
             updateFsMetrics(nodeInfo, s.getFs());
             updateSearchBackpressureMetrics(nodeInfo, s.getSearchBackpressureStats());
         }
+        updateTaskMetrics(nodeStats, listTasks);
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
         }

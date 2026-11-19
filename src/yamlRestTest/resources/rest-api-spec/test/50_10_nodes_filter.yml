@@ -16,6 +16,7 @@
 
   - match: {defaults.prometheus.cluster.settings: "true"}
   - match: {defaults.prometheus.indices: "true"}
+  - match: {defaults.prometheus.tasks: "true"}
   - match: {defaults.prometheus.nodes.filter: "_local"}
   - match: {defaults.prometheus.metric_name.prefix: "opensearch_"}
 

@@ -40,6 +40,8 @@ import org.opensearch.action.admin.cluster.node.info.NodesInfoRequest;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsRequest;
+import org.opensearch.action.admin.cluster.node.tasks.list.ListTasksRequest;
+import org.opensearch.action.admin.cluster.node.tasks.list.ListTasksResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
@@ -105,18 +107,21 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private final ClusterHealthRequest healthRequest;
         private final NodesInfoRequest localNodesInfoRequest;
         private final NodesStatsRequest nodesStatsRequest;
+        private final ListTasksRequest listTasksRequest;
         private final IndicesStatsRequest indicesStatsRequest;
         private final ClusterStateRequest clusterStateRequest;
 
         private ClusterHealthResponse clusterHealthResponse = null;
         private NodesInfoResponse localNodesInfoResponse = null;
         private NodesStatsResponse nodesStatsResponse = null;
+        private ListTasksResponse listTasksResponse = null;
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
 
         // read the state of prometheus dynamic settings only once at the beginning of the async request
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
         private final boolean isPrometheusClusterSettings = prometheusSettings.getPrometheusClusterSettings();
+        private final boolean isPrometheusTasks = prometheusSettings.getPrometheusTasks();
         private final String prometheusNodesFilter = prometheusSettings.getNodesFilter();
 
         // All the requests are executed in sequential non-blocking order.
@@ -141,6 +146,9 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
             this.nodesStatsRequest = Requests.nodesStatsRequest(prometheusNodesFilter).clear().all();
 
+            // Tasks are listed from the same nodes as the nodes stats, without task details.
+            this.listTasksRequest = isPrometheusTasks ? new ListTasksRequest().setNodes(prometheusNodesFilter) : null;
+
             // Indices stats request is not "node-specific", it does not support any "_local" notion
             // it is broad-casted to all cluster nodes.
             if (isPrometheusIndices) {
@@ -159,7 +167,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
         private void gatherRequests() {
             listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse, nodesStatsResponse, indicesStatsResponse,
-                    clusterStateResponse));
+                    listTasksResponse, clusterStateResponse));
         }
 
         private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
@@ -199,10 +207,10 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(NodesStatsResponse nodeStats) {
                     nodesStatsResponse = nodeStats;
-                    if (isPrometheusIndices) {
-                        client.admin().indices().stats(indicesStatsRequest, indicesStatsResponseActionListener);
+                    if (isPrometheusTasks) {
+                        client.admin().cluster().listTasks(listTasksRequest, listTasksResponseActionListener);
                     } else {
-                        indicesStatsResponseActionListener.onResponse(null);
+                        requestIndicesStats();
                     }
                 }
 
@@ -211,6 +219,28 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                     listener.onFailure(new OpenSearchException("Nodes stats request failed", e));
                 }
             };
+
+        private final ActionListener<ListTasksResponse> listTasksResponseActionListener =
+            new ActionListener<ListTasksResponse>() {
+                @Override
+                public void onResponse(ListTasksResponse response) {
+                    listTasksResponse = response;
+                    requestIndicesStats();
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    listener.onFailure(new OpenSearchException("List tasks request failed", e));
+                }
+            };
+
+        private void requestIndicesStats() {
+            if (isPrometheusIndices) {
+                client.admin().indices().stats(indicesStatsRequest, indicesStatsResponseActionListener);
+            } else {
+                indicesStatsResponseActionListener.onResponse(null);
+            }
+        }
 
         private final ActionListener<NodesInfoResponse> localNodesInfoResponseActionListener =
             new ActionListener<NodesInfoResponse>() {
@@ -248,12 +278,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                                                               NodesInfoResponse localNodesInfoResponse,
                                                               NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
+                                                              @Nullable ListTasksResponse listTasks,
                                                               @Nullable ClusterStateResponse clusterStateResponse) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
                     nodesStats.getNodes().toArray(new NodeStats[0]),
-                    indicesStats, clusterStateResponse,
+                    indicesStats, listTasks, clusterStateResponse,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);
