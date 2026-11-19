@@ -23,6 +23,11 @@ updates:
     target-branch: v2.19
     schedule:
       interval: "weekly"
+    ignore:
+      # OpenSearch 2.19 build-tools require Gradle 8 and fail on Gradle 9 (see #657),
+      # so v2.19 only takes Gradle 8.x minor/patch updates.
+      - dependency-name: "gradle-wrapper"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: "gradle"
     directory: "/"
     target-branch: v3.6
