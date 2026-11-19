@@ -44,6 +44,7 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - File System
     - Circuit Breaker
     - Search Backpressure
+    - Indexing Pressure
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
@@ -75,6 +76,31 @@ or query text. Only fields reported by OpenSearch are emitted: millisecond metri
 are omitted for memory trackers, and byte metrics are omitted for time trackers. Native
 memory has no rolling average. Missing task or tracker statistics are omitted rather
 than reported as zero. No additional exporter configuration is required.
+
+### Indexing pressure metrics
+
+The exporter exposes the node-level [indexing pressure](https://docs.opensearch.org/latest/tuning-your-cluster/availability-and-recovery/shard-indexing-backpressure/)
+statistics from `/_nodes/stats/indexing_pressure` using the following metrics (with the
+default `opensearch_` prefix). All are gauges, consistent with the other node statistics
+collected by this plugin; totals and rejection counts are snapshots of OpenSearch's
+cumulative values and reset when the node restarts.
+
+| Metric | Additional labels | Value |
+| --- | --- | --- |
+| `opensearch_indexing_pressure_memory_current_bytes` | `stage` | Memory currently used by indexing requests, in bytes |
+| `opensearch_indexing_pressure_memory_total_bytes` | `stage` | Memory used by indexing requests since the node started, in bytes |
+| `opensearch_indexing_pressure_memory_rejections_count` | `stage` | Indexing requests rejected because of indexing pressure |
+
+Every metric also has the standard `cluster`, `node`, and `nodeid` labels. The `stage`
+label is `coordinating`, `primary`, or `replica`; the byte metrics also report
+`combined_coordinating_and_primary` (bytes counted once when a node is both coordinating
+and primary for a request) and `all` (`combined_coordinating_and_primary` plus `replica`),
+matching the Nodes Stats API. The stages overlap, so do not sum across them. A node
+rejects new coordinating and primary work when `combined_coordinating_and_primary`
+reaches `indexing_pressure.memory.limit`, and replica work when `replica` reaches 1.5
+times that limit.
+
+No additional exporter configuration is required.
 
 ## Compatibility Matrix
 
