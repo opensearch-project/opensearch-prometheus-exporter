@@ -36,7 +36,9 @@ import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.indices.stats.CommonStats;
 import org.opensearch.action.admin.indices.stats.IndexStats;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
+import org.opensearch.action.admin.indices.stats.ShardStats;
 import org.opensearch.cluster.health.ClusterIndexHealth;
+import org.opensearch.cluster.routing.ShardRouting;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
@@ -73,6 +75,7 @@ public class PrometheusMetricsCollector {
 
     private final boolean isPrometheusClusterSettings;
     private final boolean isPrometheusIndices;
+    private final boolean isPrometheusShards;
     private final PrometheusMetricsCatalog catalog;
 
     /**
@@ -84,8 +87,23 @@ public class PrometheusMetricsCollector {
     public PrometheusMetricsCollector(PrometheusMetricsCatalog catalog,
                                       boolean isPrometheusIndices,
                                       boolean isPrometheusClusterSettings) {
+        this(catalog, isPrometheusIndices, false, isPrometheusClusterSettings);
+    }
+
+    /**
+     * A constructor.
+     * @param catalog {@link PrometheusMetricsCatalog}
+     * @param isPrometheusIndices boolean flag for index level metric
+     * @param isPrometheusShards boolean flag for shard level metric (only used when index level metrics are enabled)
+     * @param isPrometheusClusterSettings boolean flag cluster settings metrics
+     */
+    public PrometheusMetricsCollector(PrometheusMetricsCatalog catalog,
+                                      boolean isPrometheusIndices,
+                                      boolean isPrometheusShards,
+                                      boolean isPrometheusClusterSettings) {
         this.isPrometheusClusterSettings = isPrometheusClusterSettings;
         this.isPrometheusIndices = isPrometheusIndices;
+        this.isPrometheusShards = isPrometheusShards;
         this.catalog = catalog;
     }
 
@@ -99,6 +117,7 @@ public class PrometheusMetricsCollector {
         registerNodeMetrics();
         registerIndicesMetrics();
         registerPerIndexMetrics();
+        registerPerShardMetrics();
         registerTransportMetrics();
         registerHTTPMetrics();
         registerThreadPoolMetrics();
@@ -508,6 +527,41 @@ public class PrometheusMetricsCollector {
     }
 
     @SuppressWarnings("checkstyle:LineLength")
+    private void registerPerShardMetrics() {
+        catalog.registerClusterGauge("index_shard_doc_number", "Number of documents in the shard copy",
+                "index", "shard", "primary", "nodeid");
+        catalog.registerClusterGauge("index_shard_doc_deleted_number", "Number of deleted documents in the shard copy",
+                "index", "shard", "primary", "nodeid");
+        catalog.registerClusterGauge("index_shard_store_size_bytes", "Store size of the shard copy in bytes",
+                "index", "shard", "primary", "nodeid");
+    }
+
+    private void updatePerShardMetrics(@Nullable IndicesStatsResponse isr) {
+        if (isr == null) {
+            return;
+        }
+        for (ShardStats shardStats : isr.getShards()) {
+            ShardRouting routing = shardStats.getShardRouting();
+            CommonStats stats = shardStats.getStats();
+            if (routing == null || stats == null) {
+                continue;
+            }
+            String[] labels = {
+                    routing.getIndexName(),
+                    String.valueOf(routing.id()),
+                    String.valueOf(routing.primary()),
+                    routing.currentNodeId()
+            };
+            if (stats.getDocs() != null) {
+                catalog.setClusterGauge("index_shard_doc_number", stats.getDocs().getCount(), labels);
+                catalog.setClusterGauge("index_shard_doc_deleted_number", stats.getDocs().getDeleted(), labels);
+            }
+            if (stats.getStore() != null) {
+                catalog.setClusterGauge("index_shard_store_size_bytes", stats.getStore().getSizeInBytes(), labels);
+            }
+        }
+    }
+
     private void updatePerIndexContextMetrics(String indexName, String context, CommonStats idx) {
         catalog.setClusterGauge("index_doc_number", idx.getDocs().getCount(), indexName, context);
         catalog.setClusterGauge("index_doc_deleted_number", idx.getDocs().getDeleted(), indexName, context);
@@ -1108,6 +1162,9 @@ public class PrometheusMetricsCollector {
         }
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
+            if (isPrometheusShards) {
+                updatePerShardMetrics(indicesStats);
+            }
         }
         if (isPrometheusClusterSettings) {
             updateESSettings(clusterStatsData);
