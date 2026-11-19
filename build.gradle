@@ -153,6 +153,24 @@ task integTest(type: RestIntegTestTask) {
 }
 tasks.named("check").configure { dependsOn(integTest) }
 
+// METRICS.md lists all exposed metrics and is generated from the metric definitions in the code.
+tasks.register('updateMetricsDoc', JavaExec) {
+    group = 'documentation'
+    description = 'Regenerates METRICS.md from the metric definitions in the code'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.opensearch.plugin.prometheus.MetricsDocumentation'
+    args file('METRICS.md').absolutePath
+}
+
+tasks.register('checkMetricsDoc', JavaExec) {
+    group = 'verification'
+    description = 'Verifies that METRICS.md is up to date with the metric definitions in the code'
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'org.opensearch.plugin.prometheus.MetricsDocumentation'
+    args '--check', file('METRICS.md').absolutePath
+}
+tasks.named("check").configure { dependsOn(checkMetricsDoc) }
+
 // Temporary disable task :testingConventions
 testingConventions.enabled = false
 
