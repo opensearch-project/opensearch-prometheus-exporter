@@ -78,6 +78,7 @@ public class PrometheusSettings {
     static String PROMETHEUS_CLUSTER_SETTINGS_KEY = "prometheus.cluster.settings";
     static String PROMETHEUS_INDICES_KEY = "prometheus.indices";
     static String PROMETHEUS_NODES_FILTER_KEY = "prometheus.nodes.filter";
+    static String PROMETHEUS_DATA_STREAMS_KEY = "prometheus.data_streams";
     static String PROMETHEUS_SELECTED_INDICES_KEY = "prometheus.indices_filter.selected_indices";
     static String PROMETHEUS_SELECTED_OPTION_KEY = "prometheus.indices_filter.selected_option";
 
@@ -106,6 +107,15 @@ public class PrometheusSettings {
                     Setting.Property.Dynamic, Setting.Property.NodeScope);
 
     /**
+     * This setting is used to configure whether to expose data stream metrics or not. The default value is false.
+     * Data stream statistics require an extra request that is broadcast to all shards of all data streams.
+     * Can be configured in opensearch.yml file or update dynamically under key {@link #PROMETHEUS_DATA_STREAMS_KEY}.
+     */
+    public static final Setting<Boolean> PROMETHEUS_DATA_STREAMS =
+            Setting.boolSetting(PROMETHEUS_DATA_STREAMS_KEY, false,
+                    Setting.Property.Dynamic, Setting.Property.NodeScope);
+
+    /**
      * This setting is used configure to filter indices statistics from selected indices. The default value is "".
      * Can be configured in opensearch.yml file or update dynamically under key {@link #PROMETHEUS_SELECTED_INDICES_KEY}.
      */
@@ -128,6 +138,7 @@ public class PrometheusSettings {
     private volatile boolean clusterSettings;
     private volatile boolean indices;
     private volatile String nodesFilter;
+    private volatile boolean dataStreams;
     private volatile String selectedIndices;
     private volatile INDEX_FILTER_OPTIONS selectedOption;
 
@@ -140,11 +151,13 @@ public class PrometheusSettings {
         setPrometheusClusterSettings(PROMETHEUS_CLUSTER_SETTINGS.get(settings));
         setPrometheusIndices(PROMETHEUS_INDICES.get(settings));
         setPrometheusNodesFilter(PROMETHEUS_NODES_FILTER.get(settings));
+        setPrometheusDataStreams(PROMETHEUS_DATA_STREAMS.get(settings));
         setPrometheusSelectedIndices(PROMETHEUS_SELECTED_INDICES.get(settings));
         setPrometheusSelectedOption(PROMETHEUS_SELECTED_OPTION.get(settings));
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_CLUSTER_SETTINGS, this::setPrometheusClusterSettings);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_INDICES, this::setPrometheusIndices);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_NODES_FILTER, this::setPrometheusNodesFilter);
+        clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_DATA_STREAMS, this::setPrometheusDataStreams);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_INDICES, this::setPrometheusSelectedIndices);
         clusterSettings.addSettingsUpdateConsumer(PROMETHEUS_SELECTED_OPTION, this::setPrometheusSelectedOption);
     }
@@ -158,6 +171,10 @@ public class PrometheusSettings {
     }
 
     private void setPrometheusNodesFilter(String filter) { this.nodesFilter = filter; }
+
+    private void setPrometheusDataStreams(boolean flag) {
+        this.dataStreams = flag;
+    }
 
     private void setPrometheusSelectedIndices(String selectedIndices) {
         this.selectedIndices = selectedIndices;
@@ -188,6 +205,14 @@ public class PrometheusSettings {
      * @return boolean value of the key
      */
     public String getNodesFilter() { return this.nodesFilter; }
+
+    /**
+     * Get value of settings key {@link #PROMETHEUS_DATA_STREAMS_KEY}.
+     * @return boolean value of the key
+     */
+    public boolean getPrometheusDataStreams() {
+        return this.dataStreams;
+    }
 
     /**
      * Get value of settings key {@link #PROMETHEUS_SELECTED_INDICES_KEY}.
