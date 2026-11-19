@@ -605,7 +605,7 @@ public class PrometheusMetricsCollector {
         catalog.setClusterGauge("index_translog_uncommitted_size_bytes", idx.getTranslog().getUncommittedSizeInBytes(), indexName, context);
 
         catalog.setClusterGauge("index_warmer_current_number", idx.getWarmer().current(), indexName, context);
-        catalog.setClusterGauge("index_warmer_time_seconds", idx.getWarmer().totalTimeInMillis(), indexName, context);
+        catalog.setClusterGauge("index_warmer_time_seconds", idx.getWarmer().totalTimeInMillis() / 1000.0, indexName, context);
         catalog.setClusterGauge("index_warmer_count", idx.getWarmer().total(), indexName, context);
     }
 
