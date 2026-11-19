@@ -151,7 +151,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.registerMetrics();
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
-                                    response.getIndicesStats(), response.getClusterStatsData());
+                                    response.getIndicesStats(), response.getClusterStatsData(), response.getIndexMetadataData());
                             textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
