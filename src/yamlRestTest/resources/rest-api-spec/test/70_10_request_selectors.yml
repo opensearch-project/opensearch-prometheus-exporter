@@ -1,0 +1,128 @@
+# Test that URL parameters limit which metrics are collected for a single request.
+---
+"Select internal requests with include":
+
+  - do:
+      prometheus.metrics:
+        include: "nodes_stats"
+
+  - match:
+      $body: /.*opensearch_jvm_uptime_seconds\{.*/
+  - match:
+      $body: /(?s)^((?!opensearch_cluster_status\{).)*$/
+  - match:
+      $body: /(?s)^((?!opensearch_action_requests_total).)*$/
+
+  - do:
+      prometheus.metrics:
+        include: "action_metrics"
+
+  - match:
+      $body: /.*opensearch_action_requests_total\{.*/
+  - match:
+      $body: /(?s)^((?!opensearch_jvm_uptime_seconds\{).)*$/
+
+  - do:
+      prometheus.metrics:
+        include: "cluster_health"
+
+  - match:
+      $body: /.*opensearch_cluster_status\{.*/
+  - match:
+      $body: /(?s)^((?!opensearch_jvm_uptime_seconds\{).)*$/
+
+---
+"Select node stats sections":
+
+  - do:
+      prometheus.metrics:
+        nodes_stats_metrics: "jvm"
+
+  - match:
+      $body: /.*opensearch_jvm_uptime_seconds\{.*/
+  - match:
+      $body: /(?s)^((?!opensearch_os_cpu_percent\{).)*$/
+  - match:
+      $body: /.*opensearch_cluster_status\{.*/
+
+---
+"Select index stats flags and indices":
+
+  - do:
+      index:
+        index:  twitter
+        id:     1
+        body:   { foo: bar }
+
+  - do:
+      index:
+        index:  facebook
+        id:     1
+        body:   { foo: bar }
+
+  - do:
+      indices.refresh: { allow_no_indices: true }
+
+  - do:
+      prometheus.metrics:
+        indices_stats_metrics: "docs"
+
+  - match:
+      $body: /.*opensearch_index_doc_number\{cluster="yamlRestTest",index="twitter",.*/
+  - match:
+      $body: /(?s)^((?!opensearch_index_store_size_bytes\{).)*$/
+
+  - do:
+      prometheus.metrics:
+        indices: "twitter"
+
+  - match:
+      $body: /.*opensearch_index_status\{cluster="yamlRestTest",index="twitter",.*/
+  - match:
+      $body: /(?s)^((?!index="facebook").)*$/
+
+  # An empty indices param keeps the configured filter.
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices_filter.selected_indices: "twitter"
+        flat_settings: true
+
+  - do:
+      prometheus.metrics:
+        indices: ""
+
+  - match:
+      $body: /.*opensearch_index_status\{cluster="yamlRestTest",index="twitter",.*/
+  - match:
+      $body: /(?s)^((?!index="facebook").)*$/
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices_filter.selected_indices: null
+        flat_settings: true
+
+  - do:
+      indices.delete:
+        index: twitter,facebook
+
+---
+"Reject unknown values":
+
+  - do:
+      catch: bad_request
+      prometheus.metrics:
+        include: "nope"
+
+  - do:
+      catch: bad_request
+      prometheus.metrics:
+        nodes_stats_metrics: "nope"
+
+  - do:
+      catch: bad_request
+      prometheus.metrics:
+        indices_stats_metrics: "nope"

@@ -12,6 +12,12 @@
         }
       ]
     },
+    "params": {
+      "include": { "type": "list", "description": "Metric groups to collect: cluster_health, nodes_stats, indices_stats, cluster_settings, action_metrics" },
+      "nodes_stats_metrics": { "type": "list", "description": "Node stats sections to collect" },
+      "indices_stats_metrics": { "type": "list", "description": "Index stats flags to collect" },
+      "indices": { "type": "list", "description": "Indices to collect index level metrics for, overrides prometheus.indices_filter.selected_indices" }
+    },
     "body": null
   }
 }

@@ -113,8 +113,6 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
         return "prometheus_metrics_action";
     }
 
-     // This method does not throw any IOException because there are no request parameters to be parsed
-     // and processed. This may change in the future.
     @Override
     protected RestChannelConsumer prepareRequest(RestRequest request, NodeClient client) {
         if (logger.isTraceEnabled()) {
@@ -123,7 +121,11 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                     remoteAddress));
         }
 
-        NodePrometheusMetricsRequest metricsRequest = new NodePrometheusMetricsRequest();
+        NodePrometheusMetricsRequest metricsRequest = new NodePrometheusMetricsRequest()
+                .include(request.paramAsStringArray("include", null))
+                .nodesStatsMetrics(request.paramAsStringArray("nodes_stats_metrics", null))
+                .indicesStatsMetrics(request.paramAsStringArray("indices_stats_metrics", null))
+                .indices(request.paramAsStringArray("indices", null));
 
         return channel -> client.execute(INSTANCE, metricsRequest,
                 new RestResponseListener<NodePrometheusMetricsResponse>(channel) {
@@ -145,14 +147,18 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, metricPrefix);
                             collector = new PrometheusMetricsCollector(
                                     catalog,
-                                    prometheusSettings.getPrometheusIndices(),
-                                    prometheusSettings.getPrometheusClusterSettings()
+                                    prometheusSettings.getPrometheusIndices() && metricsRequest.includes("indices_stats"),
+                                    prometheusSettings.getPrometheusClusterSettings() && metricsRequest.includes("cluster_settings"),
+                                    metricsRequest.includes("cluster_health")
                             );
                             collector.registerMetrics();
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
                                     response.getIndicesStats(), response.getClusterStatsData());
-                            textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
+                            textContent = collector.getTextContent();
+                            if (metricsRequest.includes("action_metrics")) {
+                                textContent += actionMetricsTextContent(clusterName, nodeName, nodeId);
+                            }
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
                             // and dump it into the log, otherwise client needs to know how to configure logging to output
