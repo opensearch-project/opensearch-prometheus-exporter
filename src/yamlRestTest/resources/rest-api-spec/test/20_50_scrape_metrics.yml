@@ -1,0 +1,50 @@
+---
+teardown:
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: null
+            prometheus.cluster.settings: null
+
+---
+"Scrape metrics report each request sent to gather the scrape":
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*\#\sTYPE\sopensearch_scrape_success\sgauge\n.*/
+  - match:
+      $body: /.*\#\sTYPE\sopensearch_scrape_duration_seconds\sgauge\n.*/
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="cluster_health"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="nodes_info"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="nodes_stats"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="indices_stats"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="cluster_settings"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /.*opensearch_scrape_duration_seconds\{[^}]*collector="nodes_stats"[^}]*\}\s[0-9.E+-]+\n.*/
+
+---
+"Scrape metrics leave out disabled requests":
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices: false
+            prometheus.cluster.settings: false
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="nodes_stats"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /^((?!collector="indices_stats")[\s\S])*$/
+  - match:
+      $body: /^((?!collector="cluster_settings")[\s\S])*$/

@@ -46,6 +46,7 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
     - Search Backpressure
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
+- Exporter scrape duration and success, per request sent to OpenSearch
 
 ### Search backpressure metrics
 
@@ -75,6 +76,40 @@ or query text. Only fields reported by OpenSearch are emitted: millisecond metri
 are omitted for memory trackers, and byte metrics are omitted for time trackers. Native
 memory has no rolling average. Missing task or tracker statistics are omitted rather
 than reported as zero. No additional exporter configuration is required.
+
+### Scrape metrics
+
+To gather a scrape, the exporter sends several requests to OpenSearch. The following
+metrics (with the default `opensearch_` prefix) report the duration and outcome of each
+request, so that you can alert when the exporter fails to collect some of the metrics:
+
+| Metric | Additional labels | Value |
+| --- | --- | --- |
+| `opensearch_scrape_duration_seconds` | `collector` | Time from sending the request until its response or failure, in seconds |
+| `opensearch_scrape_success` | `collector` | 1 if the request succeeded, 0 if it failed |
+
+The metrics have the standard `cluster`, `node`, and `nodeid` labels of the node that
+served the scrape. The `collector` label is one of:
+
+| `collector` | Request | Metrics it provides | When it fails |
+| --- | --- | --- | --- |
+| `cluster_health` | Cluster health (local node) | Cluster and index health | The scrape fails |
+| `nodes_info` | Nodes info for the local node | Cluster and node names | The scrape fails |
+| `nodes_stats` | Nodes stats, for the nodes selected by the [nodes filter](#nodes-filter) | Node level metrics | Node level metrics are left out |
+| `indices_stats` | Indices stats, for the indices selected by the [indices filter](#indices-filter) | Index level metrics | Index level metrics are left out |
+| `cluster_settings` | Cluster state (cluster manager node) | Cluster settings metrics | Cluster settings metrics are left out |
+
+Requests disabled by settings (`prometheus.indices: false` or `prometheus.cluster.settings: false`)
+are not sent and are left out of these metrics. When a request that can be left out fails,
+the exporter logs a warning and still returns the other metrics with HTTP 200, for example
+when `prometheus.indices_filter.selected_indices` names an index that does not exist. When
+the scrape itself fails, Prometheus reports it with its own `up` metric. A request counts as
+successful when OpenSearch returns a response, even if some nodes or shards in that response
+failed. For example, to alert on any failed request:
+
+```
+opensearch_scrape_success == 0
+```
 
 ## Compatibility Matrix
 

@@ -174,16 +174,19 @@
 
   - match: {persistent: {prometheus.indices_filter.selected_indices: "log*,test"}}
 
-  # Should have errors
+  # The indices stats request fails (no such index [test]). The scrape still succeeds, without
+  # index level metrics, and reports the failure in opensearch_scrape_success.
   - do:
-      catch: request
       prometheus.metrics: {}
 
-  - match: {status: 500}
-  - match: {error.type: "exception"}
-  - match: {error.reason: "Indices stats request failed"}
-  - match: {error.caused_by.type: "index_not_found_exception"}
-  - match: {error.caused_by.reason: "no such index [test]"}
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="indices_stats"[^}]*\}\s0\.0\n.*/
+  - match:
+      $body: /.*opensearch_scrape_success\{[^}]*collector="nodes_stats"[^}]*\}\s1\.0\n.*/
+  - match:
+      $body: /^((?!opensearch_index_status\{)[\s\S])*$/
+  - match:
+      $body: /.*opensearch_http_open_server_number\{[^}]*\}\s[0-9.E+]+\n.*/
 
   # Change selected_option to "LENIENT_EXPAND_OPEN"
   - do:
