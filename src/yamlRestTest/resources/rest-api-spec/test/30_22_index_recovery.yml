@@ -46,6 +46,6 @@
         (
           opensearch_index_recovery_throttle_time_seconds\{
               cluster="yamlRestTest",index="twitter",context="(primaries|total)"
-          ,\} \s+ \d+\.\d+ \n?
+          ,\} \s+ \d+\.\d+(E-?\d+)? \n?
         ){2}
         .*/
