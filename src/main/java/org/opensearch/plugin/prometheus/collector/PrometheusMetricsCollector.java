@@ -238,6 +238,17 @@ public class PrometheusMetricsCollector {
         catalog.registerNodeGauge("indices_refresh_total_count", "Count of refreshes");
         catalog.registerNodeGauge("indices_refresh_total_time_seconds", "Time spent while refreshes");
         catalog.registerNodeGauge("indices_refresh_listeners_number", "Number of refresh listeners");
+        catalog.registerNodeGauge("indices_refresh_external_total_count", "Count of external refreshes");
+        catalog.registerNodeGauge("indices_refresh_external_total_time_seconds", "Time spent while external refreshes");
+
+        catalog.registerNodeGauge("indices_translog_operations_number", "Current number of translog operations");
+        catalog.registerNodeGauge("indices_translog_size_bytes", "Translog size");
+        catalog.registerNodeGauge("indices_translog_uncommitted_operations_number", "Current number of uncommitted translog operations");
+        catalog.registerNodeGauge("indices_translog_uncommitted_size_bytes", "Translog uncommitted size");
+
+        catalog.registerNodeGauge("indices_warmer_current_number", "Current number of warmer");
+        catalog.registerNodeGauge("indices_warmer_time_seconds", "Time spent during warmers");
+        catalog.registerNodeGauge("indices_warmer_count", "Counter of warmers");
 
         catalog.registerNodeGauge("indices_flush_total_count", "Count of flushes");
         catalog.registerNodeGauge("indices_flush_total_time_seconds", "Total time spent while flushes");
@@ -343,6 +354,19 @@ public class PrometheusMetricsCollector {
             catalog.setNodeGauge(nodeInfo,"indices_refresh_total_count", idx.getRefresh().getTotal());
             catalog.setNodeGauge(nodeInfo,"indices_refresh_total_time_seconds", idx.getRefresh().getTotalTimeInMillis() / 1000.0);
             catalog.setNodeGauge(nodeInfo,"indices_refresh_listeners_number", idx.getRefresh().getListeners());
+            catalog.setNodeGauge(nodeInfo,"indices_refresh_external_total_count", idx.getRefresh().getExternalTotal());
+            catalog.setNodeGauge(nodeInfo,"indices_refresh_external_total_time_seconds",
+                    idx.getRefresh().getExternalTotalTimeInMillis() / 1000.0);
+
+            catalog.setNodeGauge(nodeInfo,"indices_translog_operations_number", idx.getTranslog().estimatedNumberOfOperations());
+            catalog.setNodeGauge(nodeInfo,"indices_translog_size_bytes", idx.getTranslog().getTranslogSizeInBytes());
+            catalog.setNodeGauge(nodeInfo,"indices_translog_uncommitted_operations_number",
+                    idx.getTranslog().getUncommittedOperations());
+            catalog.setNodeGauge(nodeInfo,"indices_translog_uncommitted_size_bytes", idx.getTranslog().getUncommittedSizeInBytes());
+
+            catalog.setNodeGauge(nodeInfo,"indices_warmer_current_number", idx.getWarmer().current());
+            catalog.setNodeGauge(nodeInfo,"indices_warmer_time_seconds", idx.getWarmer().totalTimeInMillis() / 1000.0);
+            catalog.setNodeGauge(nodeInfo,"indices_warmer_count", idx.getWarmer().total());
 
             catalog.setNodeGauge(nodeInfo,"indices_flush_total_count", idx.getFlush().getTotal());
             catalog.setNodeGauge(nodeInfo,"indices_flush_total_time_seconds", idx.getFlush().getTotalTimeInMillis() / 1000.0);
@@ -438,6 +462,9 @@ public class PrometheusMetricsCollector {
         catalog.registerClusterGauge("index_refresh_total_count", "Count of refreshes", "index", "context");
         catalog.registerClusterGauge("index_refresh_total_time_seconds", "Time spent while refreshes", "index", "context");
         catalog.registerClusterGauge("index_refresh_listeners_number", "Number of refresh listeners", "index", "context");
+        catalog.registerClusterGauge("index_refresh_external_total_count", "Count of external refreshes", "index", "context");
+        catalog.registerClusterGauge("index_refresh_external_total_time_seconds", "Time spent while external refreshes",
+                "index", "context");
 
         catalog.registerClusterGauge("index_flush_total_count", "Count of flushes", "index", "context");
         catalog.registerClusterGauge("index_flush_total_time_seconds", "Total time spent while flushes", "index", "context");
@@ -560,6 +587,9 @@ public class PrometheusMetricsCollector {
         catalog.setClusterGauge("index_refresh_total_count", idx.getRefresh().getTotal(), indexName, context);
         catalog.setClusterGauge("index_refresh_total_time_seconds", idx.getRefresh().getTotalTimeInMillis() / 1000.0, indexName, context);
         catalog.setClusterGauge("index_refresh_listeners_number", idx.getRefresh().getListeners(), indexName, context);
+        catalog.setClusterGauge("index_refresh_external_total_count", idx.getRefresh().getExternalTotal(), indexName, context);
+        catalog.setClusterGauge("index_refresh_external_total_time_seconds",
+                idx.getRefresh().getExternalTotalTimeInMillis() / 1000.0, indexName, context);
 
         catalog.setClusterGauge("index_flush_total_count", idx.getFlush().getTotal(), indexName, context);
         catalog.setClusterGauge("index_flush_total_time_seconds", idx.getFlush().getTotalTimeInMillis() / 1000.0, indexName, context);
