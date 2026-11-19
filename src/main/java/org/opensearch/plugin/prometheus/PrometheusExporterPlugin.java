@@ -40,7 +40,6 @@ import org.opensearch.action.support.ActionFilter;
 import org.opensearch.common.settings.ClusterSettings;
 import org.opensearch.common.settings.IndexScopedSettings;
 import org.opensearch.common.settings.Setting;
-import org.opensearch.common.settings.Settings;
 import org.opensearch.common.settings.SettingsFilter;
 import org.opensearch.core.action.ActionResponse;
 import org.opensearch.plugin.prometheus.action.NodePrometheusMetricsAction;
@@ -54,7 +53,20 @@ import org.opensearch.rest.RestController;
 import org.opensearch.rest.RestHandler;
 import org.opensearch.plugin.prometheus.rest.RestPrometheusMetricsAction;
 
+import org.opensearch.cluster.service.ClusterService;
+import org.opensearch.common.settings.Settings;
+import org.opensearch.core.common.io.stream.NamedWriteableRegistry;
+import org.opensearch.core.xcontent.NamedXContentRegistry;
+import org.opensearch.env.Environment;
+import org.opensearch.env.NodeEnvironment;
+import org.opensearch.repositories.RepositoriesService;
+import org.opensearch.script.ScriptService;
+import org.opensearch.threadpool.ThreadPool;
+import org.opensearch.transport.client.Client;
+import org.opensearch.watcher.ResourceWatcherService;
+
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Supplier;
@@ -69,6 +81,9 @@ public class PrometheusExporterPlugin extends Plugin implements ActionPlugin {
     // filter chain that populates it and the REST handler that exposes it.
     private final PrometheusActionFilter actionFilter;
 
+    // Set in createComponents, which the node invokes before it asks for the REST handlers.
+    private volatile ClusterService clusterService;
+
     /**
      * A constructor.
      *
@@ -77,6 +92,17 @@ public class PrometheusExporterPlugin extends Plugin implements ActionPlugin {
     public PrometheusExporterPlugin(Settings settings) {
         logger.info("starting Prometheus exporter plugin");
         this.actionFilter = new PrometheusActionFilter(RestPrometheusMetricsAction.METRIC_PREFIX.get(settings));
+    }
+
+    @Override
+    public Collection<Object> createComponents(Client client, ClusterService clusterService, ThreadPool threadPool,
+                                               ResourceWatcherService resourceWatcherService, ScriptService scriptService,
+                                               NamedXContentRegistry xContentRegistry, Environment environment,
+                                               NodeEnvironment nodeEnvironment, NamedWriteableRegistry namedWriteableRegistry,
+                                               IndexNameExpressionResolver indexNameExpressionResolver,
+                                               Supplier<RepositoriesService> repositoriesServiceSupplier) {
+        this.clusterService = clusterService;
+        return Collections.emptyList();
     }
 
     @Override
@@ -97,7 +123,8 @@ public class PrometheusExporterPlugin extends Plugin implements ActionPlugin {
                                              IndexNameExpressionResolver indexNameExpressionResolver,
                                              Supplier<DiscoveryNodes> nodesInCluster) {
         return singletonList(
-                new RestPrometheusMetricsAction(settings, clusterSettings, actionFilter)
+                new RestPrometheusMetricsAction(settings, clusterSettings, actionFilter,
+                        () -> clusterService.state().metadata().clusterUUID())
         );
     }
 

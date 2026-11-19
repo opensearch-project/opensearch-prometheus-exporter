@@ -33,7 +33,7 @@
         \# \s TYPE \s opensearch_index_shards_number \s gauge \n
         (
           opensearch_index_shards_number\{
-              cluster="yamlRestTest",
+              cluster="yamlRestTest",cluster_uuid="[^"]+",
               type="(active_primary|initializing|relocating|shards|active|unassigned)",
               index="twitter"
           ,\} \s+ \d+\.\d+ \n?
@@ -46,7 +46,7 @@
         \# \s HELP \s opensearch_index_status (\s|\w|\d)+ \n
         \# \s TYPE \s opensearch_index_status \s gauge \n
         opensearch_index_status\{
-            cluster="yamlRestTest",index="twitter"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter"
         \,} \s \d+\.\d+ \n?
         .*/
 
@@ -56,7 +56,7 @@
         \# \s HELP \s opensearch_index_replicas_number (\s|\w|\d)+ \n
         \# \s TYPE \s opensearch_index_replicas_number \s gauge \n
         opensearch_index_replicas_number\{
-            cluster="yamlRestTest",index="twitter"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter"
         ,\} \s+ \d+\.\d+ \n?
         .*/
 
@@ -95,7 +95,7 @@
         \# \s TYPE \s opensearch_index_doc_number \s gauge \n
         (
           opensearch_index_doc_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -107,7 +107,7 @@
         \# \s TYPE \s opensearch_index_doc_deleted_number \s gauge \n
         (
           opensearch_index_doc_deleted_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -119,7 +119,7 @@
         \# \s TYPE \s opensearch_index_store_size_bytes \s gauge \n
         (
           opensearch_index_store_size_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/

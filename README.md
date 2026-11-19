@@ -67,7 +67,7 @@ OpenSearch's cumulative values and reset when the node restarts.
 | `opensearch_search_backpressure_resource_tracker_current_avg_bytes` | `task`, `tracker` | Average current heap or native-memory usage, in bytes |
 | `opensearch_search_backpressure_resource_tracker_rolling_avg_bytes` | `task`, `tracker` | Rolling average heap usage, in bytes |
 
-Every metric also has the standard `cluster`, `node`, and `nodeid` labels. The `task`
+Every metric also has the standard `cluster`, `cluster_uuid`, `node`, and `nodeid` labels. The `task`
 label is `search_task` or `search_shard_task`. The `tracker` label is an OpenSearch
 resource tracker name, such as `cpu_usage_tracker`, `elapsed_time_tracker`,
 `heap_usage_tracker`, or `native_memory_usage_tracker`. Labels never contain task IDs

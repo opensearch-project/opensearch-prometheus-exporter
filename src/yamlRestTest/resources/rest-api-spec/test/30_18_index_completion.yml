@@ -33,7 +33,7 @@
         \# \s TYPE \s opensearch_index_completion_size_bytes \s gauge \n
         (
           opensearch_index_completion_size_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/

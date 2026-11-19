@@ -30,7 +30,7 @@
       $body: |
         /.*
         opensearch_process_cpu_percent\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         \,} \s \d+\.\d+ (\n\#|![\n])
         .*/
 
@@ -53,7 +53,7 @@
       $body: |
         /.*
         (opensearch_process_cpu_percent\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         \,} \s \d+\.\d+ \n?){2}
         .*/
 
