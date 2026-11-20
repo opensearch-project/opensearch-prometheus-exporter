@@ -33,7 +33,7 @@
         \# \s TYPE \s opensearch_index_get_count \s gauge \n
         (
           opensearch_index_get_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -45,7 +45,7 @@
         \# \s TYPE \s opensearch_index_get_time_seconds \s gauge \n
         (
           opensearch_index_get_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -57,7 +57,7 @@
         \# \s TYPE \s opensearch_index_get_exists_count \s gauge \n
         (
           opensearch_index_get_exists_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -69,7 +69,7 @@
         \# \s TYPE \s opensearch_index_get_exists_time_seconds \s gauge \n
         (
           opensearch_index_get_exists_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -81,7 +81,7 @@
         \# \s TYPE \s opensearch_index_get_missing_count \s gauge \n
         (
           opensearch_index_get_missing_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -93,7 +93,7 @@
         \# \s TYPE \s opensearch_index_get_missing_time_seconds \s gauge \n
         (
           opensearch_index_get_missing_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -105,7 +105,7 @@
         \# \s TYPE \s opensearch_index_get_current_number \s gauge \n
         (
           opensearch_index_get_current_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/

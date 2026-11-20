@@ -15,7 +15,7 @@
         \# \s HELP \s opensearch_indices_search_concurrent_query_count \s Count \s of \s search \s queries \s that \s use \s concurrent \s segment \s search \n
         \# \s TYPE \s opensearch_indices_search_concurrent_query_count \s gauge \n
         opensearch_indices_search_concurrent_query_count\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         ,\} \s+ \d+\.\d+
         .*/
 
@@ -26,7 +26,7 @@
         \# \s HELP \s opensearch_indices_search_concurrent_query_current_number \s Number \s of \s search \s queries \s that \s use \s concurrent \s segment \s search \s currently \s in \s progress \n
         \# \s TYPE \s opensearch_indices_search_concurrent_query_current_number \s gauge \n
         opensearch_indices_search_concurrent_query_current_number\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         ,\} \s+ \d+\.\d+
         .*/
 
@@ -37,7 +37,7 @@
         \# \s HELP \s opensearch_indices_search_concurrent_query_time_seconds \s Time \s spent \s on \s search \s queries \s that \s use \s concurrent \s segment \s search \n
         \# \s TYPE \s opensearch_indices_search_concurrent_query_time_seconds \s gauge \n
         opensearch_indices_search_concurrent_query_time_seconds\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         ,\} \s+ \d+\.\d+
         .*/
 
@@ -48,6 +48,6 @@
         \# \s HELP \s opensearch_indices_search_concurrent_avg_slice_count \s Average \s slice \s count \s per \s concurrent \s segment \s search \s request \n
         \# \s TYPE \s opensearch_indices_search_concurrent_avg_slice_count \s gauge \n
         opensearch_indices_search_concurrent_avg_slice_count\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         ,\} \s+ \d+\.\d+
         .*/

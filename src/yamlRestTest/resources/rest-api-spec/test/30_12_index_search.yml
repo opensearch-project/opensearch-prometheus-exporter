@@ -33,7 +33,7 @@
         \# \s TYPE \s opensearch_index_search_open_contexts_number \s gauge \n
         (
           opensearch_index_search_open_contexts_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -45,7 +45,7 @@
         \# \s TYPE \s opensearch_index_search_fetch_count \s gauge \n
         (
           opensearch_index_search_fetch_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -57,7 +57,7 @@
         \# \s TYPE \s opensearch_index_search_fetch_current_number \s gauge \n
         (
           opensearch_index_search_fetch_current_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -69,7 +69,7 @@
         \# \s TYPE \s opensearch_index_search_fetch_time_seconds \s gauge \n
         (
           opensearch_index_search_fetch_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -81,7 +81,7 @@
         \# \s TYPE \s opensearch_index_search_query_count \s gauge \n
         (
           opensearch_index_search_query_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -93,7 +93,7 @@
         \# \s TYPE \s opensearch_index_search_query_current_number \s gauge \n
         (
           opensearch_index_search_query_current_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -105,7 +105,7 @@
         \# \s TYPE \s opensearch_index_search_query_time_seconds \s gauge \n
         (
           opensearch_index_search_query_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -117,7 +117,7 @@
         \# \s TYPE \s opensearch_index_search_query_phase_failed_count \s gauge \n
         (
           opensearch_index_search_query_phase_failed_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -129,7 +129,7 @@
         \# \s TYPE \s opensearch_index_search_scroll_count \s gauge \n
         (
           opensearch_index_search_scroll_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -141,7 +141,7 @@
         \# \s TYPE \s opensearch_index_search_scroll_current_number \s gauge \n
         (
           opensearch_index_search_scroll_current_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -153,7 +153,7 @@
         \# \s TYPE \s opensearch_index_search_scroll_time_seconds \s gauge \n
         (
           opensearch_index_search_scroll_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -170,7 +170,7 @@
         \# \s HELP \s opensearch_indices_search_query_phase_failed_count (\s|\w|\d)+ \n
         \# \s TYPE \s opensearch_indices_search_query_phase_failed_count \s gauge \n
         opensearch_indices_search_query_phase_failed_count\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         ,\} \s+ \d+\.\d+
         .*/
 
@@ -219,13 +219,13 @@
   - match:
       $body: |
         /opensearch_index_search_query_phase_failed_count\{
-            cluster="yamlRestTest",index="twitter",context="total"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="total"
         ,\} \s+ [1-9]\d*\.\d+/
 
   - match:
       $body: |
         /opensearch_indices_search_query_phase_failed_count\{
-            cluster="yamlRestTest",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
+            cluster="yamlRestTest",cluster_uuid="[^"]+",node="[a-zA-Z0-9\-\.\_]+",nodeid="[a-zA-Z0-9\-\.\_]+"
         ,\} \s+ [1-9]\d*\.\d+/
 
   - do:
