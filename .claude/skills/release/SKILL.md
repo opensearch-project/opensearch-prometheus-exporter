@@ -28,6 +28,11 @@ mode (e.g. "dry run", see below). If there is no version, ask for it.
   the user has to act on a draft (approve it, or post it by hand like the forum announcement), show its full
   text in the chat. In a later phase, fill the template again from the current state instead of relying on
   an earlier draft file.
+- **Speak for the maintenance team.** The plugin has several maintainers, and the team keeps growing. Public
+  release texts written on behalf of the project (forum announcement, release notes, tracking issue comments)
+  speak for the team, not for the person running the release: no personal sign-off such as "Regards, <name>".
+  The forum post ends with "Your Prometheus Exporter Plugin maintenance team", see
+  [templates/forum-post.md](templates/forum-post.md).
 - **Release builds use the final OpenSearch version, never a `-SNAPSHOT`.** Between releases, `main`
   (and `v3.6`) build against `X.Y.Z-SNAPSHOT` from the OpenSearch snapshot repository. The release commit
   must have `opensearch_version = X.Y.Z`, resolved from Maven Central, so that the tag holds the source
