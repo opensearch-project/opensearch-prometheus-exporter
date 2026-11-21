@@ -369,6 +369,11 @@ which creates the tag. Phase 4 is done when `gh release view $V` shows it publis
 2. **Fix the release date** in the compatibility matrix, so it matches `publishedAt` (format `Mon DD, YYYY`).
    If it differs, open a small PR (`Fix X.Y.Z.N release date in compatibility matrix`, see #616), against
    `main`, and for a maintenance release also against the branch. Each PR gets its own worktree.
+   A differing date is the expected outcome, not a mistake: the row is added before the release with the
+   planned date, and the actual date is only known once an admin publishes the draft. Keep the usual title,
+   but describe the PR as a **post-release** update, say that this is the expected outcome of a successful
+   release (not an error in the PR that added the row), and link this step in
+   [RELEASE_PROCESS.md](../../../RELEASE_PROCESS.md). Example: #712. Word any other post-release follow-up the same way.
 3. **Forum announcement:** the user posts it by hand. Draft it in Markdown from [templates/forum-post.md](templates/forum-post.md),
    with the release highlights grouped into new features, enhancements and bug fixes, and show the title and the
    full text in the chat, so the user can copy it. Ask for the link once it is posted; the tracking issue needs it.
