@@ -90,7 +90,7 @@ After the release is published:
 
 - Download the published ZIP and check that its checksum matches the one you built.
 - Fix the release date in the Compatibility Matrix if it differs from the actual publish date (example: [#616](https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/616)). The date is the plugin release date, not the OpenSearch release date.
-- Announce the release on the [OpenSearch forum](https://forum.opensearch.org), in the `OpenSearch` category with the `releases` tag (example: [3.9.0.0](https://forum.opensearch.org/t/prometheus-exporter-plugin-3-9-0-0-released/28327)).
+- Announce the release on the [OpenSearch forum](https://forum.opensearch.org), in the `OpenSearch` category with the `releases` tag (example: [3.10.0.0](https://forum.opensearch.org/t/prometheus-exporter-plugin-3-10-0-0-released/28689)).
 - Tick the checklist in the tracking issue and close it.
 
 ## Using the `release` skill

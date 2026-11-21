@@ -369,7 +369,8 @@ which creates the tag. Phase 4 is done when `gh release view $V` shows it publis
 2. **Fix the release date** in the compatibility matrix, so it matches `publishedAt` (format `Mon DD, YYYY`).
    If it differs, open a small PR (`Fix X.Y.Z.N release date in compatibility matrix`, see #616), against
    `main`, and for a maintenance release also against the branch. Each PR gets its own worktree.
-3. **Forum announcement:** the user posts it by hand. Draft it from [templates/forum-post.md](templates/forum-post.md)
-   and show the title and the full text in the chat, so the user can copy it.
+3. **Forum announcement:** the user posts it by hand. Draft it in Markdown from [templates/forum-post.md](templates/forum-post.md),
+   with the release highlights grouped into new features, enhancements and bug fixes, and show the title and the
+   full text in the chat, so the user can copy it. Ask for the link once it is posted; the tracking issue needs it.
 4. **Tracking issue:** tick the checklist items in the body (`gh issue edit --body-file`), comment with
    the release link, the tag request and the forum post, and close it once everything is ticked.
