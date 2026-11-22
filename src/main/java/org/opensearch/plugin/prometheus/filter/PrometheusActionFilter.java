@@ -177,6 +177,7 @@ public class PrometheusActionFilter implements ActionFilter {
      * identity is not reliably known when this filter is constructed.
      *
      * @param clusterName Name of the OpenSearch cluster
+     * @param clusterUUID UUID of the OpenSearch cluster, or an empty string when it is unknown
      * @param nodeName    Name of the local node
      * @param nodeId      ID of the local node
      * @return Metric samples suitable for rendering with
@@ -184,10 +185,11 @@ public class PrometheusActionFilter implements ActionFilter {
      */
     public Enumeration<Collector.MetricFamilySamples> metricFamilySamples(
             String clusterName,
+            String clusterUUID,
             String nodeName,
             String nodeId) {
 
-        List<String> nodeLabelValues = List.of(clusterName, nodeName, nodeId);
+        List<String> nodeLabelValues = List.of(clusterName, clusterUUID, nodeName, nodeId);
         assert nodeLabelValues.size() == NODE_LABEL_NAMES.size();
         List<Collector.MetricFamilySamples> labelled = new ArrayList<>();
 

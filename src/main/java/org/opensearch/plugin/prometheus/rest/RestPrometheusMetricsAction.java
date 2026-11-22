@@ -135,6 +135,14 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         assert response.getLocalNodesInfoResponse().getNodes().size() == 1;
                         String nodeName = response.getLocalNodesInfoResponse().getNodes().get(0).getNode().getName();
                         String nodeId = response.getLocalNodesInfoResponse().getNodes().get(0).getNode().getId();
+                        // The cluster UUID comes from the cluster state, which is only fetched when the
+                        // cluster-settings metrics are enabled (the default). When it was not fetched
+                        // there is no UUID to report, so the label is empty rather than missing: every
+                        // sample of a metric family must carry the same label set.
+                        String clusterUUID = response.getClusterStatsData() != null
+                                && response.getClusterStatsData().getClusterUUID() != null
+                                        ? response.getClusterStatsData().getClusterUUID()
+                                        : "";
 
                         if (logger.isTraceEnabled()) {
                             logger.trace("Preparing metrics output on node: [{}], [{}]", nodeName, nodeId);
@@ -142,7 +150,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         PrometheusMetricsCollector collector;
                         String textContent;
                         try {
-                            PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, metricPrefix);
+                            PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, clusterUUID, metricPrefix);
                             collector = new PrometheusMetricsCollector(
                                     catalog,
                                     prometheusSettings.getPrometheusIndices(),
@@ -152,7 +160,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
                                     response.getIndicesStats(), response.getClusterStatsData());
-                            textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
+                            textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, clusterUUID, nodeName, nodeId);
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
                             // and dump it into the log, otherwise client needs to know how to configure logging to output
@@ -176,9 +184,9 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
     // The action filter accumulates its metrics across requests, so it keeps its own long-lived registry
     // rather than the per-request one owned by the catalog. Both are rendered in the same text format
     // response; concatenating is safe because the two registries do not share metric names.
-    private String actionMetricsTextContent(String clusterName, String nodeName, String nodeId) throws IOException {
+    private String actionMetricsTextContent(String clusterName, String clusterUUID, String nodeName, String nodeId) throws IOException {
         Writer writer = new StringWriter();
-        TextFormat.write004(writer, actionFilter.metricFamilySamples(clusterName, nodeName, nodeId));
+        TextFormat.write004(writer, actionFilter.metricFamilySamples(clusterName, clusterUUID, nodeName, nodeId));
         return writer.toString();
     }
 }
