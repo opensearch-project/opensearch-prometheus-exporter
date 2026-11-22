@@ -34,6 +34,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.opensearch.plugin.prometheus.collector.PrometheusSettings;
 import org.opensearch.OpenSearchException;
+import org.opensearch.threadpool.ThreadPool;
 import org.opensearch.action.admin.cluster.health.ClusterHealthRequest;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.info.NodesInfoRequest;
@@ -70,6 +71,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
     private final Settings settings;
     private final ClusterSettings clusterSettings;
     private final PrometheusSettings prometheusSettings;
+    private final ThreadPool threadPool;
     private final Logger logger = LogManager.getLogger(getClass());
 
     /**
@@ -90,6 +92,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         this.settings = settings;
         this.clusterSettings = clusterSettings;
         this.prometheusSettings = new PrometheusSettings(settings, clusterSettings);
+        this.threadPool = transportService.getThreadPool();
     }
 
     @Override
@@ -158,8 +161,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         }
 
         private void gatherRequests() {
-            listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse, nodesStatsResponse, indicesStatsResponse,
-                    clusterStateResponse));
+            // The last reply can arrive on a transport (network) thread. Building the response
+            // and rendering the metrics on that thread blocks other traffic on it, so hand the
+            // work to the MANAGEMENT thread pool instead (see #710). This mirrors the fix core
+            // made for GET _aliases in opensearch-project/OpenSearch#21954.
+            threadPool.executor(ThreadPool.Names.MANAGEMENT)
+                .execute(() -> listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse,
+                    nodesStatsResponse, indicesStatsResponse, clusterStateResponse)));
         }
 
         private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
