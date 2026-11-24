@@ -1,1 +1,4 @@
 *.bat text eol=crlf
+# Dependabot commits the Gradle wrapper script with CRLF in the repository,
+# so store it as is instead of normalizing it to LF.
+/gradlew.bat -text
