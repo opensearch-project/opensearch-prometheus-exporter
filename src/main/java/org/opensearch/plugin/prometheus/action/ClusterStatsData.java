@@ -83,6 +83,10 @@ public class ClusterStatsData extends ActionResponse {
     // Encodes cluster.routing.allocation.enable as: 0=all, 1=primaries, 2=new_primaries, 3=none
     @Nullable private final Integer shardAllocation;
 
+    // UUID of the cluster, from the cluster state metadata. Null when the cluster state
+    // was not fetched (prometheus.cluster.settings is disabled).
+    @Nullable private final String clusterUUID;
+
     /**
      * A constructor.
      * @param in A {@link StreamInput} to materialize the instance from
@@ -101,6 +105,8 @@ public class ClusterStatsData extends ActionResponse {
         floodStageInPct = in.readOptionalDouble();
         //
         shardAllocation = in.readOptionalInt();
+        //
+        clusterUUID = in.readOptionalString();
     }
 
     @SuppressWarnings({"checkstyle:LineLength"})
@@ -164,6 +170,7 @@ public class ClusterStatsData extends ActionResponse {
         diskHighInPct = resolvedDiskHighInPct;
         floodStageInPct = resolvedFloodStageInPct;
         shardAllocation = resolvedShardAllocation;
+        clusterUUID = metadata.clusterUUID();
     }
 
     /**
@@ -227,6 +234,17 @@ public class ClusterStatsData extends ActionResponse {
         out.writeOptionalDouble(floodStageInPct);
         //
         out.writeOptionalInt(shardAllocation);
+        //
+        out.writeOptionalString(clusterUUID);
+    }
+
+    /**
+     * Get the UUID of the cluster, from the cluster state metadata.
+     * @return The cluster UUID, or {@code null} if the cluster state was not fetched.
+     */
+    @Nullable
+    public String getClusterUUID() {
+        return clusterUUID;
     }
 
     /**
