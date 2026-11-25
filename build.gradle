@@ -106,6 +106,14 @@ configurations.all {
     resolutionStrategy.force "com.google.errorprone:error_prone_annotations:2.53.0"
 }
 
+// The jacoco plugin is applied by OpenSearch build-tools. Without an explicit version, Gradle's default
+// JaCoCo 0.8.12 is used, which depends on vulnerable ASM 9.7.
+plugins.withId('jacoco') {
+    jacoco {
+        toolVersion = "0.8.13"
+    }
+}
+
 dependencies {
 // Deprecated in Gradle 6.8.1, use "implementation" instead
 // See https://docs.gradle.org/6.8.1/userguide/java_plugin.html#sec:java_plugin_and_dependency_management
