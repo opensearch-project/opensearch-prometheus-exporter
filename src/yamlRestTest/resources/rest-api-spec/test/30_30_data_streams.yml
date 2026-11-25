@@ -1,0 +1,114 @@
+# Test that data stream metrics are opt-in and can be enabled dynamically.
+---
+"Data streams":
+
+  - do:
+      cluster.get_settings:
+        include_defaults: true
+        filter_path: defaults.prometheus
+
+  - match: {defaults.prometheus.data_streams: "false"}
+
+  - do:
+      indices.put_index_template:
+        name: logs-template
+        body:
+          index_patterns: ["logs-*"]
+          data_stream: {}
+
+  - do:
+      indices.create_data_stream:
+        name: logs-nginx
+
+  - do:
+      indices.create_data_stream:
+        name: logs-empty
+
+  - do:
+      index:
+        index: logs-nginx
+        op_type: create
+        refresh: true
+        body: { "@timestamp": "2026-11-13T12:00:00.123Z", "message": "GET /" }
+
+  # Data stream metrics are disabled by default
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        \# \s HELP \s opensearch_data_stream_backing_indices_number (\s|\w|\d)+ \n
+        \# \s TYPE \s opensearch_data_stream_backing_indices_number \s gauge \n
+        (?!opensearch_data_stream_backing_indices_number)
+        .*/
+
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.data_streams: true
+        flat_settings: true
+
+  - is_true: transient.prometheus\.data_streams
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_data_stream_backing_indices_number\{
+            cluster="yamlRestTest",
+            data_stream="logs-nginx",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        opensearch_data_stream_store_size_bytes\{
+            cluster="yamlRestTest",
+            data_stream="logs-nginx",
+        \} \s+ \d+\.\d+(E\d+)? \n?
+        .*/
+
+  # 2026-11-13T12:00:00.123Z
+  - match:
+      $body: |
+        /.*
+        opensearch_data_stream_maximum_timestamp_seconds\{
+            cluster="yamlRestTest",
+            data_stream="logs-nginx",
+        \} \s+ 1\.794571200123E9 \n?
+        .*/
+
+  # A data stream without documents has no maximum timestamp
+  - match:
+      $body: |
+        /.*
+        opensearch_data_stream_backing_indices_number\{
+            cluster="yamlRestTest",
+            data_stream="logs-empty",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /(?s)^(?!.*opensearch_data_stream_maximum_timestamp_seconds\{cluster="yamlRestTest",data_stream="logs-empty").*$/
+
+  # Test clean up...
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.data_streams: null
+        flat_settings: true
+
+  - do:
+      indices.delete_data_stream:
+        name: logs-nginx,logs-empty
+
+  - do:
+      indices.delete_index_template:
+        name: logs-template
