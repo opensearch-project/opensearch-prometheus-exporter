@@ -31,6 +31,7 @@
 package org.opensearch.plugin.prometheus.collector;
 
 import org.opensearch.plugin.prometheus.action.ClusterStatsData;
+import org.opensearch.plugin.prometheus.action.ScrapeStats;
 import org.opensearch.action.admin.cluster.health.ClusterHealthResponse;
 import org.opensearch.action.admin.cluster.node.stats.NodeStats;
 import org.opensearch.action.admin.indices.stats.CommonStats;
@@ -110,6 +111,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerSearchBackpressureMetrics();
+        registerScrapeMetrics();
         registerESSettings();
     }
 
@@ -1024,6 +1026,34 @@ public class PrometheusMetricsCollector {
     private void setNodeGaugeIfNumber(Tuple<String, String> nodeInfo, String metric, Object value, String... labelValues) {
         if (value instanceof Number number) {
             catalog.setNodeGauge(nodeInfo, metric, number.doubleValue(), labelValues);
+        }
+    }
+
+    private void registerScrapeMetrics() {
+        catalog.registerNodeGauge("scrape_duration_seconds",
+                "Duration of a request sent by the exporter to gather this scrape, by collector", "collector");
+        catalog.registerNodeGauge("scrape_success",
+                "Whether a request sent by the exporter to gather this scrape succeeded (1) or failed (0), by collector",
+                "collector");
+    }
+
+    /**
+     * Update the metrics describing the requests sent to gather this scrape. They are reported for the originating
+     * node, which is the node that served the scrape.
+     *
+     * @param originNodeName Originating node name.
+     * @param originNodeId   Originating node ID.
+     * @param scrapeStats    Duration and outcome of each request; disabled requests are absent.
+     */
+    public void updateScrapeMetrics(String originNodeName, String originNodeId, @Nullable ScrapeStats scrapeStats) {
+        if (scrapeStats == null) {
+            return;
+        }
+        Tuple<String, String> nodeInfo = new Tuple<>(originNodeName, originNodeId);
+        for (Map.Entry<String, ScrapeStats.Step> entry : scrapeStats.getSteps().entrySet()) {
+            catalog.setNodeGauge(nodeInfo, "scrape_duration_seconds",
+                    entry.getValue().durationNanos() / 1_000_000_000.0, entry.getKey());
+            catalog.setNodeGauge(nodeInfo, "scrape_success", entry.getValue().success() ? 1 : 0, entry.getKey());
         }
     }
 

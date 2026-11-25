@@ -113,6 +113,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private NodesStatsResponse nodesStatsResponse = null;
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
+        private final ScrapeStats scrapeStats = new ScrapeStats();
 
         // read the state of prometheus dynamic settings only once at the beginning of the async request
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
@@ -162,6 +163,34 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                     clusterStateResponse));
         }
 
+        /**
+         * Wraps a step listener to record the step duration and outcome in {@link #scrapeStats}.
+         * Must be called right before the request is sent, as the duration is measured from this call.
+         */
+        private <T> ActionListener<T> timed(String step, ActionListener<T> delegate) {
+            final long startNanos = System.nanoTime();
+            return new ActionListener<T>() {
+                @Override
+                public void onResponse(T response) {
+                    scrapeStats.record(step, System.nanoTime() - startNanos, true);
+                    delegate.onResponse(response);
+                }
+
+                @Override
+                public void onFailure(Exception e) {
+                    scrapeStats.record(step, System.nanoTime() - startNanos, false);
+                    delegate.onFailure(e);
+                }
+            };
+        }
+
+        // The nodes stats, indices stats and cluster state requests are not fatal: when one fails, its metrics are left
+        // out and the failure is reported by the scrape_success metric. Indices stats (sent to the data nodes) and
+        // cluster state (sent to the cluster manager) depend on other nodes. Nodes stats only does when
+        // prometheus.nodes.filter selects other nodes (the default, _local, does not), but it is not needed to build
+        // the response either. The cluster health and local nodes info requests stay fatal: they are served by the
+        // local node and the response cannot be built without the local node info.
+
         private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
             new ActionListener<ClusterStateResponse>() {
                 @Override
@@ -172,7 +201,9 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
                 @Override
                 public void onFailure(Exception e) {
-                    listener.onFailure(new OpenSearchException("Cluster state request failed", e));
+                    logger.warn("Cluster state request failed, cluster settings metrics are left out of this scrape", e);
+                    clusterStateResponse = null;
+                    gatherRequests();
                 }
             };
 
@@ -181,16 +212,14 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(IndicesStatsResponse response) {
                     indicesStatsResponse = response;
-                    if (isPrometheusClusterSettings) {
-                        client.admin().cluster().state(clusterStateRequest, clusterStateResponseActionListener);
-                    } else {
-                        gatherRequests();
-                    }
+                    requestClusterState();
                 }
 
                 @Override
                 public void onFailure(Exception e) {
-                    listener.onFailure(new OpenSearchException("Indices stats request failed", e));
+                    logger.warn("Indices stats request failed, index level metrics are left out of this scrape", e);
+                    indicesStatsResponse = null;
+                    requestClusterState();
                 }
             };
 
@@ -199,16 +228,14 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(NodesStatsResponse nodeStats) {
                     nodesStatsResponse = nodeStats;
-                    if (isPrometheusIndices) {
-                        client.admin().indices().stats(indicesStatsRequest, indicesStatsResponseActionListener);
-                    } else {
-                        indicesStatsResponseActionListener.onResponse(null);
-                    }
+                    requestIndicesStats();
                 }
 
                 @Override
                 public void onFailure(Exception e) {
-                    listener.onFailure(new OpenSearchException("Nodes stats request failed", e));
+                    logger.warn("Nodes stats request failed, node level metrics are left out of this scrape", e);
+                    nodesStatsResponse = null;
+                    requestIndicesStats();
                 }
             };
 
@@ -217,7 +244,8 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(NodesInfoResponse nodesInfoResponse) {
                     localNodesInfoResponse = nodesInfoResponse;
-                    client.admin().cluster().nodesStats(nodesStatsRequest, nodesStatsResponseActionListener);
+                    client.admin().cluster().nodesStats(nodesStatsRequest,
+                            timed(ScrapeStats.NODES_STATS, nodesStatsResponseActionListener));
                 }
 
                 @Override
@@ -231,7 +259,8 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(ClusterHealthResponse response) {
                     clusterHealthResponse = response;
-                    client.admin().cluster().nodesInfo(localNodesInfoRequest, localNodesInfoResponseActionListener);
+                    client.admin().cluster().nodesInfo(localNodesInfoRequest,
+                            timed(ScrapeStats.NODES_INFO, localNodesInfoResponseActionListener));
                 }
 
                 @Override
@@ -240,20 +269,38 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 }
             };
 
+        private void requestIndicesStats() {
+            if (isPrometheusIndices) {
+                client.admin().indices().stats(indicesStatsRequest,
+                        timed(ScrapeStats.INDICES_STATS, indicesStatsResponseActionListener));
+            } else {
+                indicesStatsResponseActionListener.onResponse(null);
+            }
+        }
+
+        private void requestClusterState() {
+            if (isPrometheusClusterSettings) {
+                client.admin().cluster().state(clusterStateRequest,
+                        timed(ScrapeStats.CLUSTER_SETTINGS, clusterStateResponseActionListener));
+            } else {
+                gatherRequests();
+            }
+        }
+
         private void start() {
-            client.admin().cluster().health(healthRequest, clusterHealthResponseActionListener);
+            client.admin().cluster().health(healthRequest, timed(ScrapeStats.CLUSTER_HEALTH, clusterHealthResponseActionListener));
         }
 
         protected NodePrometheusMetricsResponse buildResponse(ClusterHealthResponse clusterHealth,
                                                               NodesInfoResponse localNodesInfoResponse,
-                                                              NodesStatsResponse nodesStats,
+                                                              @Nullable NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
                                                               @Nullable ClusterStateResponse clusterStateResponse) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
-                    nodesStats.getNodes().toArray(new NodeStats[0]),
-                    indicesStats, clusterStateResponse,
+                    nodesStats == null ? new NodeStats[0] : nodesStats.getNodes().toArray(new NodeStats[0]),
+                    indicesStats, clusterStateResponse, scrapeStats,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);
