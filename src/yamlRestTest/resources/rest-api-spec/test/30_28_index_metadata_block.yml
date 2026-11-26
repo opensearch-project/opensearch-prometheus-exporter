@@ -1,0 +1,130 @@
+# Test that an index with the metadata block does not fail the whole scrape.
+# See https://github.com/opensearch-project/opensearch-prometheus-exporter/issues/681
+---
+"Index with metadata block":
+
+  - do:
+      indices.create:
+        index: twitter
+
+  - do:
+      indices.create:
+        index: facebook
+
+  - do:
+      cluster.health:
+        wait_for_status: green
+
+  - do:
+      indices.put_settings:
+        index: facebook
+        body:
+          index.blocks.metadata: true
+
+  # The scrape succeeds and the other index still has its index level metrics
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_status\{
+            cluster="yamlRestTest",
+            index="twitter",
+        \} \s+ \d+\.\d+ \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_doc_number\{
+            cluster="yamlRestTest",
+            index="twitter",
+            context="total",
+        \} \s+ \d+\.\d+ \n?
+        .*/
+
+  # The blocked index has no stats, but its blocks are still reported
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="facebook",
+            block="metadata",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="facebook",
+            block="read_only_allow_delete",
+        \} \s+ 0\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /(?s)^(?!.*opensearch_index_doc_number\{cluster="yamlRestTest",index="facebook").*$/
+
+  # The scrape also succeeds when every selected index is blocked
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices_filter.selected_indices: "facebook"
+        flat_settings: true
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: |
+        /.*
+        opensearch_index_blocks_bool\{
+            cluster="yamlRestTest",
+            index="facebook",
+            block="metadata",
+        \} \s+ 1\.0 \n?
+        .*/
+
+  - match:
+      $body: |
+        /(?s)^(?!.*opensearch_index_status\{cluster="yamlRestTest",index="twitter").*$/
+
+  # Errors from the indices filter are reported as before
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices_filter.selected_indices: "facebook,missing"
+        flat_settings: true
+
+  - do:
+      catch: request
+      prometheus.metrics: {}
+
+  - match: {status: 500}
+  - match: {error.reason: "Indices stats request failed"}
+  - match: {error.caused_by.type: "index_not_found_exception"}
+  - match: {error.caused_by.reason: "no such index [missing]"}
+
+  # Test clean up...
+  - do:
+      cluster.put_settings:
+        body:
+          transient:
+            prometheus.indices_filter.selected_indices: null
+        flat_settings: true
+
+  - do:
+      indices.put_settings:
+        index: facebook
+        body:
+          index.blocks.metadata: null
+
+  - do:
+      indices.delete:
+        index: twitter,facebook
