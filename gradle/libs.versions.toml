@@ -1,0 +1,7 @@
+[versions]
+checkstyle = "14.4.0"
+
+[libraries]
+# Not used as a dependency. Checkstyle is configured through `checkstyle.toolVersion` in build.gradle,
+# but Dependabot needs the module coordinates to update the version above.
+checkstyle = { module = "com.puppycrawl.tools:checkstyle", version.ref = "checkstyle" }
