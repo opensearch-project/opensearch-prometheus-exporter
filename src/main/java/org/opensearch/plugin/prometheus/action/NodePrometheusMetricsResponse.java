@@ -54,6 +54,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodesInfoResponse nodesInfoResponse;
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
+    private final String clusterUUID;
     private ClusterStatsData clusterStatsData = null;
 
     /**
@@ -67,6 +68,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodesInfoResponse = new NodesInfoResponse(in);
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
+        clusterUUID = in.readString();
         clusterStatsData = new ClusterStatsData(in);
     }
 
@@ -77,6 +79,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
+     * @param clusterUUID Cluster UUID as known by the local node
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -85,12 +88,14 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
+                                         String clusterUUID,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
         this.nodesInfoResponse = localNodesInfoResponse;
         this.nodeStats = nodesStats;
         this.indicesStats = indicesStats;
+        this.clusterUUID = clusterUUID;
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
@@ -128,6 +133,14 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     }
 
     /**
+     * Get the cluster UUID as known by the local node, the same value as returned by {@code GET /}.
+     * @return cluster UUID
+     */
+    public String getClusterUUID() {
+        return this.clusterUUID;
+    }
+
+    /**
      * Get internal {@link ClusterStatsData} object.
      * @return ClusterStatsData object
      */
@@ -142,6 +155,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodesInfoResponse.writeTo(out);
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
+        out.writeString(clusterUUID);
         clusterStatsData.writeTo(out);
     }
 }

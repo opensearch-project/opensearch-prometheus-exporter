@@ -1,0 +1,21 @@
+---
+"Version info matches GET /":
+  - do:
+      info: {}
+
+  - set:
+      cluster_uuid: os_cluster_uuid
+      version.number: os_version
+      version.build_hash: os_build_hash
+      version.build_date: os_build_date
+      version.build_type: os_build_type
+      version.distribution: os_distribution
+      version.lucene_version: os_lucene_version
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*\#\sTYPE\sopensearch_version_info\sgauge\n.*/
+  - match:
+      $body: /.*opensearch_version_info\{cluster="yamlRestTest",node="[^"]+",nodeid="[^"]+",cluster_uuid="${os_cluster_uuid}",version="${os_version}",distribution="${os_distribution}",build_type="${os_build_type}",build_hash="${os_build_hash}",build_date="${os_build_date}",lucene_version="${os_lucene_version}",\}\s1\.0\n.*/

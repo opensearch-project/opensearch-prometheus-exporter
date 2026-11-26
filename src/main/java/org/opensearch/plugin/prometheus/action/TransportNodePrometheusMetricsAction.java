@@ -43,6 +43,7 @@ import org.opensearch.action.admin.cluster.node.stats.NodesStatsRequest;
 import org.opensearch.action.admin.cluster.node.stats.NodesStatsResponse;
 import org.opensearch.action.admin.cluster.state.ClusterStateRequest;
 import org.opensearch.action.admin.cluster.state.ClusterStateResponse;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.ActionFilters;
@@ -69,6 +70,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
     private final Client client;
     private final Settings settings;
     private final ClusterSettings clusterSettings;
+    private final ClusterService clusterService;
     private final PrometheusSettings prometheusSettings;
     private final Logger logger = LogManager.getLogger(getClass());
 
@@ -79,16 +81,18 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
      * @param transportService Transport service
      * @param actionFilters Action filters
      * @param clusterSettings Cluster settings
+     * @param clusterService Cluster service
      */
     @Inject
     public TransportNodePrometheusMetricsAction(Settings settings, Client client,
                                                 TransportService transportService, ActionFilters actionFilters,
-                                                ClusterSettings clusterSettings) {
+                                                ClusterSettings clusterSettings, ClusterService clusterService) {
         super(NodePrometheusMetricsAction.NAME, transportService, actionFilters,
                 NodePrometheusMetricsRequest::new);
         this.client = client;
         this.settings = settings;
         this.clusterSettings = clusterSettings;
+        this.clusterService = clusterService;
         this.prometheusSettings = new PrometheusSettings(settings, clusterSettings);
     }
 
@@ -254,6 +258,8 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                     localNodesInfoResponse,
                     nodesStats.getNodes().toArray(new NodeStats[0]),
                     indicesStats, clusterStateResponse,
+                    // Same source as the cluster_uuid returned by GET / on this node.
+                    clusterService.state().metadata().clusterUUID(),
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);
