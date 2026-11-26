@@ -47,6 +47,7 @@ import org.opensearch.action.admin.indices.stats.IndicesStatsRequest;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.action.support.ActionFilters;
 import org.opensearch.action.support.HandledTransportAction;
+import org.opensearch.cluster.service.ClusterService;
 import org.opensearch.transport.client.Client;
 import org.opensearch.transport.client.Requests;
 import org.opensearch.common.Nullable;
@@ -70,6 +71,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
     private final Settings settings;
     private final ClusterSettings clusterSettings;
     private final PrometheusSettings prometheusSettings;
+    private final ClusterService clusterService;
     private final Logger logger = LogManager.getLogger(getClass());
 
     /**
@@ -79,17 +81,19 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
      * @param transportService Transport service
      * @param actionFilters Action filters
      * @param clusterSettings Cluster settings
+     * @param clusterService Cluster service
      */
     @Inject
     public TransportNodePrometheusMetricsAction(Settings settings, Client client,
                                                 TransportService transportService, ActionFilters actionFilters,
-                                                ClusterSettings clusterSettings) {
+                                                ClusterSettings clusterSettings, ClusterService clusterService) {
         super(NodePrometheusMetricsAction.NAME, transportService, actionFilters,
                 NodePrometheusMetricsRequest::new);
         this.client = client;
         this.settings = settings;
         this.clusterSettings = clusterSettings;
         this.prometheusSettings = new PrometheusSettings(settings, clusterSettings);
+        this.clusterService = clusterService;
     }
 
     @Override
@@ -113,6 +117,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
         private NodesStatsResponse nodesStatsResponse = null;
         private IndicesStatsResponse indicesStatsResponse = null;
         private ClusterStateResponse clusterStateResponse = null;
+        private IndexMetadataData indexMetadataData = null;
 
         // read the state of prometheus dynamic settings only once at the beginning of the async request
         private final boolean isPrometheusIndices = prometheusSettings.getPrometheusIndices();
@@ -159,7 +164,7 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
 
         private void gatherRequests() {
             listener.onResponse(buildResponse(clusterHealthResponse, localNodesInfoResponse, nodesStatsResponse, indicesStatsResponse,
-                    clusterStateResponse));
+                    clusterStateResponse, indexMetadataData));
         }
 
         private final ActionListener<ClusterStateResponse> clusterStateResponseActionListener =
@@ -181,6 +186,12 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                 @Override
                 public void onResponse(IndicesStatsResponse response) {
                     indicesStatsResponse = response;
+                    // Index metadata is read from the local cluster state (like the cluster health above), only for
+                    // the indices returned by the indices stats request, i.e. the indices selected by the filter.
+                    if (response != null) {
+                        indexMetadataData = new IndexMetadataData(clusterService.state().metadata(),
+                                response.getIndices().keySet());
+                    }
                     if (isPrometheusClusterSettings) {
                         client.admin().cluster().state(clusterStateRequest, clusterStateResponseActionListener);
                     } else {
@@ -248,12 +259,13 @@ public class TransportNodePrometheusMetricsAction extends HandledTransportAction
                                                               NodesInfoResponse localNodesInfoResponse,
                                                               NodesStatsResponse nodesStats,
                                                               @Nullable IndicesStatsResponse indicesStats,
-                                                              @Nullable ClusterStateResponse clusterStateResponse) {
+                                                              @Nullable ClusterStateResponse clusterStateResponse,
+                                                              @Nullable IndexMetadataData indexMetadataData) {
             NodePrometheusMetricsResponse response = new NodePrometheusMetricsResponse(
                     clusterHealth,
                     localNodesInfoResponse,
                     nodesStats.getNodes().toArray(new NodeStats[0]),
-                    indicesStats, clusterStateResponse,
+                    indicesStats, clusterStateResponse, indexMetadataData,
                     settings, clusterSettings);
             if (logger.isTraceEnabled()) {
                 logger.trace("Return response: [{}]", response);

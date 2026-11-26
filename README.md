@@ -47,6 +47,20 @@ This plugin was started as a fork of the Prometheus exporter for Elasticsearch®
 - Indices status
 - Cluster settings (notably [disk watermarks](https://docs.opensearch.org/latest/install-and-configure/configuring-opensearch/cluster-settings/#cluster-level-routing-and-allocation-settings) that can be updated dynamically, and the shard routing allocation mode `cluster.routing.allocation.enable` exposed as `opensearch_cluster_routing_allocation_enabled` with values `0=all`, `1=primaries`, `2=new_primaries`, `3=none`)
 
+### Index creation timestamp
+
+When [index level metrics](#index-level-metrics) are enabled, `opensearch_index_creation_timestamp_seconds`
+(with the default `opensearch_` prefix) reports when each index selected by the [indices filter](#indices-filter)
+was created (`index.creation_date`), as a Unix timestamp in seconds with the `cluster` and `index` labels.
+The value is read from the cluster state of the node serving the request, so it adds no extra request.
+
+It can be used to find indices that are older than the intended retention, for example because an ISM policy
+failed or was never attached:
+
+```
+time() - opensearch_index_creation_timestamp_seconds{index=~"logs-.*"} > 30 * 86400
+```
+
 ### Search backpressure metrics
 
 The exporter exposes the statistics from `/_nodes/stats/search_backpressure` using the
