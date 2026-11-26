@@ -49,7 +49,7 @@ def pluginDescription = pluginDescription
 def pluginClassName = pluginClassname
 
 checkstyle {
-    toolVersion = '10.12.1'
+    toolVersion = '14.4.0'
     showViolations true
     configDirectory.set(rootProject.file("config/checkstyle/"))
 }
