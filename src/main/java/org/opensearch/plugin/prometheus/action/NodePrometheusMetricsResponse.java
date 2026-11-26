@@ -55,6 +55,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
     private final NodeStats[] nodeStats;
     @Nullable private final IndicesStatsResponse indicesStats;
     private ClusterStatsData clusterStatsData = null;
+    @Nullable private final NodeShardsData nodeShardsData;
 
     /**
      * A constructor that materializes the instance from {@link StreamInput}.
@@ -68,6 +69,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         nodeStats = in.readArray(NodeStats::new, NodeStats[]::new);
         indicesStats = in.readOptionalWriteable(IndicesStatsResponse::new);
         clusterStatsData = new ClusterStatsData(in);
+        nodeShardsData = in.readOptionalWriteable(NodeShardsData::new);
     }
 
     /**
@@ -77,6 +79,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
      * @param nodesStats NodesStats
      * @param indicesStats IndicesStats
      * @param clusterStateResponse ClusterStateResponse
+     * @param nodeShardsData NodeShardsData of the selected nodes
      * @param settings Settings
      * @param clusterSettings ClusterSettings
      */
@@ -85,6 +88,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
                                          NodeStats[] nodesStats,
                                          @Nullable IndicesStatsResponse indicesStats,
                                          @Nullable ClusterStateResponse clusterStateResponse,
+                                         @Nullable NodeShardsData nodeShardsData,
                                          Settings settings,
                                          ClusterSettings clusterSettings) {
         this.clusterHealth = clusterHealth;
@@ -94,6 +98,7 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         if (clusterStateResponse != null) {
             this.clusterStatsData = new ClusterStatsData(clusterStateResponse, settings, clusterSettings);
         }
+        this.nodeShardsData = nodeShardsData;
     }
 
     /**
@@ -136,6 +141,15 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         return this.clusterStatsData;
     }
 
+    /**
+     * Get internal {@link NodeShardsData} object.
+     * @return NodeShardsData object
+     */
+    @Nullable
+    public NodeShardsData getNodeShardsData() {
+        return this.nodeShardsData;
+    }
+
     @Override
     public void writeTo(StreamOutput out) throws IOException {
         clusterHealth.writeTo(out);
@@ -143,5 +157,6 @@ public class NodePrometheusMetricsResponse extends ActionResponse {
         out.writeArray(nodeStats);
         out.writeOptionalWriteable(indicesStats);
         clusterStatsData.writeTo(out);
+        out.writeOptionalWriteable(nodeShardsData);
     }
 }
