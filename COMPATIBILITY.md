@@ -17,6 +17,7 @@ NOTE: OpenSearch plugins must match _exactly_ in major.minor.patch version to th
 |      3.2.0 |     3.2.0.0 |  Aug 19, 2025 |
 |      3.1.0 |     3.1.0.0 |  Aug 08, 2025 |
 |      3.0.0 |     3.0.0.0 |  Aug 08, 2025 |
+|     2.19.8 |    2.19.8.0 |  Nov 27, 2026 |
 |     2.19.7 |    2.19.7.0 |  Nov 10, 2026 |
 |     2.19.6 |    2.19.6.0 |  Aug 28, 2026 |
 |     2.19.5 |    2.19.5.0 |  Mar 12, 2026 |
