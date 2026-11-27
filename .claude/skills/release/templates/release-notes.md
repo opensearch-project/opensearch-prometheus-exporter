@@ -35,6 +35,8 @@ Use only the sections that have entries, in this order. Past releases (`gh relea
 are the reference for tone.
 
 ```markdown
+<optional opener, see Rules>
+
 ## Features
 
 * <PR title> by @<author> in https://github.com/opensearch-project/opensearch-prometheus-exporter/pull/<n>
@@ -54,6 +56,14 @@ are the reference for tone.
 ```
 
 Rules:
+- **Opener for security-driven releases:** when the OpenSearch release fixes CVEs (a bundled JDK update,
+  or dependency bumps that the OpenSearch release notes mark as CVE fixes), start the notes with one line
+  that says so, e.g. "Builds against OpenSearch 3.10.1, which updates the bundled JDK for CVE-2026-114938."
+  (3.10.1.0) or "Builds against OpenSearch 2.19.8, which updates the bundled JDK for CVE-2026-114938 and
+  bumps Jackson and zstd-jni to address multiple CVEs." (2.19.8.0). Take the facts from the OpenSearch
+  release notes (`gh release view X.Y.Z -R opensearch-project/OpenSearch`) and the tracking issue; name a CVE
+  only when a source names it. Users upgrade for these fixes, and the plugin release is what lets them move
+  to the patched OpenSearch. Leave the opener out when the OpenSearch release has no security fixes.
 - Sort by section using the PR title and labels: new metrics or settings are **Features**, fixes are
   **Bug Fixes**, and dependency, build, CI, docs and version bumps are **Maintenance Upgrades**.
   When a PR does not clearly fit, ask.
