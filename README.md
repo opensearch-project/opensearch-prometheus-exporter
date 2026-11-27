@@ -76,6 +76,24 @@ are omitted for memory trackers, and byte metrics are omitted for time trackers.
 memory has no rolling average. Missing task or tracker statistics are omitted rather
 than reported as zero. No additional exporter configuration is required.
 
+### Cluster manager throttling metrics
+
+The exporter exposes the statistics from `/_nodes/stats/cluster_manager_throttling` using
+the following metrics (with the default `opensearch_` prefix). Like the other node
+statistics they are gauges holding OpenSearch's cumulative counts, which reset when the
+node restarts, so use `rate()` or `increase()` to see how many tasks were throttled over time.
+
+| Metric | Additional labels | Value |
+|--------|-------------------|-------|
+| `opensearch_cluster_manager_throttling_total_throttled_tasks_count` | | Total number of throttled cluster manager tasks |
+| `opensearch_cluster_manager_throttling_throttled_tasks_per_task_type_count` | `task_type` | Number of throttled cluster manager tasks per task type |
+
+Every metric also has the standard `cluster`, `node`, and `nodeid` labels. The `task_type`
+label is the name of a cluster manager task, such as `put-mapping`. A task type is reported
+only after a task of that type has been throttled, so the per task type metric has no
+series on a node where nothing was throttled. Nothing is reported for a node that does not
+return throttling statistics.
+
 ## Compatibility Matrix
 
 For the complete compatibility matrix including all supported OpenSearch versions and corresponding plugin versions, see [COMPATIBILITY.md](COMPATIBILITY.md).

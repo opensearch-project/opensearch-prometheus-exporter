@@ -1,0 +1,11 @@
+# The total of throttled cluster manager tasks is always reported by a node, with zero when nothing
+# has been throttled. The per task type counts are not checked here: a task type shows up only after
+# a task of that type has been throttled, which is covered by the unit tests.
+---
+"Metrics carry the cluster manager throttling total":
+
+  - do:
+      prometheus.metrics: {}
+
+  - match:
+      $body: /.*\# \s HELP \s opensearch_cluster_manager_throttling_total_throttled_tasks_count (\s|\w|\d)+ \n \# \s TYPE \s opensearch_cluster_manager_throttling_total_throttled_tasks_count \s gauge \n opensearch_cluster_manager_throttling_total_throttled_tasks_count\{ cluster="yamlRestTest",node="[^"]+",nodeid="[^"]+",\} \s [0-9]+\.0 \n? .*/

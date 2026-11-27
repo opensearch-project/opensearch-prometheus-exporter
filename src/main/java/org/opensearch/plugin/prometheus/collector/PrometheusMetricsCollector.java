@@ -38,6 +38,7 @@ import org.opensearch.action.admin.indices.stats.IndexStats;
 import org.opensearch.action.admin.indices.stats.IndicesStatsResponse;
 import org.opensearch.cluster.health.ClusterIndexHealth;
 import org.opensearch.cluster.node.DiscoveryNodeRole;
+import org.opensearch.cluster.service.ClusterManagerThrottlingStats;
 import org.opensearch.common.Nullable;
 import org.opensearch.common.collect.Tuple;
 import org.opensearch.common.xcontent.XContentHelper;
@@ -110,6 +111,7 @@ public class PrometheusMetricsCollector {
         registerOsMetrics();
         registerFsMetrics();
         registerSearchBackpressureMetrics();
+        registerClusterManagerThrottlingMetrics();
         registerESSettings();
     }
 
@@ -1043,6 +1045,52 @@ public class PrometheusMetricsCollector {
                 "Cluster shard routing allocation mode (0=all, 1=primaries, 2=new_primaries, 3=none)");
     }
 
+    private void registerClusterManagerThrottlingMetrics() {
+        catalog.registerNodeGauge("cluster_manager_throttling_total_throttled_tasks_count",
+                "Total number of cluster manager tasks throttled on this node since it started");
+        catalog.registerNodeGauge("cluster_manager_throttling_throttled_tasks_per_task_type_count",
+                "Number of cluster manager tasks throttled on this node since it started, per task type", "task_type");
+    }
+
+    private void updateClusterManagerThrottlingMetrics(Tuple<String, String> nodeInfo,
+                                                       @Nullable ClusterManagerThrottlingStats stats) {
+        if (stats == null) {
+            return;
+        }
+
+        // The per task type counts cannot be enumerated through the getters of ClusterManagerThrottlingStats,
+        // so (like the search backpressure stats) use its Nodes Stats API representation.
+        Map<?, ?> throttling;
+        try {
+            BytesReference content = org.opensearch.core.xcontent.XContentHelper.toXContent(
+                    stats, MediaTypeRegistry.JSON, ToXContent.EMPTY_PARAMS, false);
+            throttling = asMap(XContentHelper.convertToMap(content, false, MediaTypeRegistry.JSON)
+                    .v2().get("cluster_manager_throttling"));
+        } catch (IOException e) {
+            throw new IllegalStateException(
+                    "Failed to serialize cluster manager throttling stats for node " + nodeInfo.v2(), e);
+        }
+        Map<?, ?> throttlingStats = throttling == null ? null : asMap(throttling.get("stats"));
+        if (throttlingStats == null) {
+            return;
+        }
+
+        setNodeGaugeIfNumber(nodeInfo, "cluster_manager_throttling_total_throttled_tasks_count",
+                throttlingStats.get("total_throttled_tasks"));
+
+        // The task types are the fixed names of the cluster manager tasks that OpenSearch can throttle,
+        // so the number of label values is bounded. A task type shows up only after it has been throttled.
+        Map<?, ?> perTaskType = asMap(throttlingStats.get("throttled_tasks_per_task_type"));
+        if (perTaskType != null) {
+            for (Map.Entry<?, ?> entry : perTaskType.entrySet()) {
+                if (entry.getKey() instanceof String taskType) {
+                    setNodeGaugeIfNumber(nodeInfo, "cluster_manager_throttling_throttled_tasks_per_task_type_count",
+                            entry.getValue(), taskType);
+                }
+            }
+        }
+    }
+
     @SuppressWarnings({"checkstyle:LineLength", "checkstyle:LeftCurly"})
     private void updateESSettings(@Nullable ClusterStatsData stats) {
         if (stats != null) {
@@ -1105,6 +1153,7 @@ public class PrometheusMetricsCollector {
             updateOsMetrics(nodeInfo, s.getOs());
             updateFsMetrics(nodeInfo, s.getFs());
             updateSearchBackpressureMetrics(nodeInfo, s.getSearchBackpressureStats());
+            updateClusterManagerThrottlingMetrics(nodeInfo, s.getClusterManagerThrottlingStats());
         }
         if (isPrometheusIndices) {
             updatePerIndexMetrics(clusterHealthResponse, indicesStats);
