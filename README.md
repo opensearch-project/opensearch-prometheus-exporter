@@ -50,6 +50,7 @@ NOTE: OpenSearch plugins much match _exactly_ in major.minor.path version to the
 
 | OpenSearch |      Plugin |  Release date |
 |-----------:|------------:|--------------:|
+|     2.19.8 |    2.19.8.0 |  Nov 27, 2026 |
 |     2.19.7 |    2.19.7.0 |  Nov 10, 2026 |
 |     2.19.6 |    2.19.6.0 |  Jul 20, 2026 |
 |     2.19.5 |    2.19.5.0 |  Mar 12, 2026 |
@@ -114,7 +115,7 @@ You need to install the plugin on every OpenSearch node that will be scraped by 
 
 To **install** the plugin:
 
-`./bin/opensearch-plugin install https://github.com/opensearch-project/opensearch-prometheus-exporter/releases/download/2.19.7.0/prometheus-exporter-2.19.7.0.zip`
+`./bin/opensearch-plugin install https://github.com/opensearch-project/opensearch-prometheus-exporter/releases/download/2.19.8.0/prometheus-exporter-2.19.8.0.zip`
 
 To **remove** the plugin.
 
