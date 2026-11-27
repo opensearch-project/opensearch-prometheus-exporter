@@ -55,39 +55,44 @@ public class PrometheusMetricsCatalog {
     private static final Logger logger = LogManager.getLogger(RestPrometheusMetricsAction.class);
 
     private final String clusterName;
+    private final String clusterUuid;
     private final String metricPrefix;
 
     private final HashMap<String, Collector> metrics;
     private final CollectorRegistry registry;
-    public static final List<String> NODE_LABEL_NAMES = List.of("cluster", "node", "nodeid");
+    public static final List<String> NODE_LABEL_NAMES = List.of("cluster", "cluster_uuid", "node", "nodeid");
 
     /**
      * Creates a new PrometheusMetricsCatalog for the given cluster and metric prefix.
      *
      * @param clusterName   Name of the OpenSearch cluster
+     * @param clusterUuid   UUID of the OpenSearch cluster, which unlike the name is unique per cluster
      * @param metricPrefix  A value that is automatically used as a prefix for all registered and set metrics
      */
-    public PrometheusMetricsCatalog(String clusterName, String metricPrefix) {
+    public PrometheusMetricsCatalog(String clusterName, String clusterUuid, String metricPrefix) {
         this.clusterName = clusterName;
+        this.clusterUuid = clusterUuid;
         this.metricPrefix = metricPrefix;
         metrics = new HashMap<>();
         registry = new CollectorRegistry();
     }
 
     private String[] getExtendedClusterLabelNames(String... labelNames) {
-        String[] extended = new String[labelNames.length + 1];
+        String[] extended = new String[labelNames.length + 2];
         extended[0] = "cluster";
+        extended[1] = "cluster_uuid";
 
-        System.arraycopy(labelNames, 0, extended, 1, labelNames.length);
+        System.arraycopy(labelNames, 0, extended, 2, labelNames.length);
 
         return extended;
     }
 
     private String[] getExtendedClusterLabelValues(String... labelValues) {
-        String[] extended = new String[labelValues.length + 1];
+        String[] extended = new String[labelValues.length + 2];
         extended[0] = clusterName;
+        extended[1] = clusterUuid;
 
-        System.arraycopy(labelValues, 0, extended, 1, labelValues.length);
+        System.arraycopy(labelValues, 0, extended, 2, labelValues.length);
 
         return extended;
     }
@@ -111,12 +116,13 @@ public class PrometheusMetricsCatalog {
     private String[] getExtendedNodeLabelValues(
             Tuple<String, String> nodeInfo,
             String... labelValues) {
-        String[] extended = new String[labelValues.length + 3];
+        String[] extended = new String[labelValues.length + NODE_LABEL_NAMES.size()];
         extended[0] = clusterName;
-        extended[1] = nodeInfo.v1();
-        extended[2] = nodeInfo.v2();
+        extended[1] = clusterUuid;
+        extended[2] = nodeInfo.v1();
+        extended[3] = nodeInfo.v2();
 
-        System.arraycopy(labelValues, 0, extended, 3, labelValues.length);
+        System.arraycopy(labelValues, 0, extended, NODE_LABEL_NAMES.size(), labelValues.length);
 
         return extended;
     }

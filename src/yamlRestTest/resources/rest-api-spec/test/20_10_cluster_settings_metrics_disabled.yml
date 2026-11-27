@@ -24,7 +24,7 @@
         \# \s HELP \s opensearch_cluster_routing_allocation_disk_threshold_enabled (\s|\w|\d)+ \n
         \# \s TYPE \s opensearch_cluster_routing_allocation_disk_threshold_enabled \s gauge \n
         opensearch_cluster_routing_allocation_disk_threshold_enabled\{
-            cluster="yamlRestTest"
+            cluster="yamlRestTest",cluster_uuid="[^"]+"
         \,} \s 1\.0 \n?
         .*/
 
@@ -153,6 +153,6 @@
         \# \s HELP \s opensearch_cluster_routing_allocation_disk_threshold_enabled (\s|\w|\d)+ \n
         \# \s TYPE \s opensearch_cluster_routing_allocation_disk_threshold_enabled \s gauge \n
         opensearch_cluster_routing_allocation_disk_threshold_enabled\{
-            cluster="yamlRestTest"
+            cluster="yamlRestTest",cluster_uuid="[^"]+"
         \,} \s 1\.0 \n?
         .*/

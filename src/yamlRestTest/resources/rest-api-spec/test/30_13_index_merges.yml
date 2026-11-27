@@ -33,7 +33,7 @@
         \# \s TYPE \s opensearch_index_merges_current_number \s gauge \n
         (
           opensearch_index_merges_current_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -45,7 +45,7 @@
         \# \s TYPE \s opensearch_index_merges_current_docs_number \s gauge \n
         (
           opensearch_index_merges_current_docs_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -57,7 +57,7 @@
         \# \s TYPE \s opensearch_index_merges_current_size_bytes \s gauge \n
         (
           opensearch_index_merges_current_size_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -69,7 +69,7 @@
         \# \s TYPE \s opensearch_index_merges_total_number \s gauge \n
         (
           opensearch_index_merges_total_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -81,7 +81,7 @@
         \# \s TYPE \s opensearch_index_merges_total_time_seconds \s gauge \n
         (
           opensearch_index_merges_total_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -93,7 +93,7 @@
         \# \s TYPE \s opensearch_index_merges_total_docs_count \s gauge \n
         (
           opensearch_index_merges_total_docs_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -105,7 +105,7 @@
         \# \s TYPE \s opensearch_index_merges_total_size_bytes \s gauge \n
         (
           opensearch_index_merges_total_size_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -117,7 +117,7 @@
         \# \s TYPE \s opensearch_index_merges_total_stopped_time_seconds \s gauge \n
         (
           opensearch_index_merges_total_stopped_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -129,7 +129,7 @@
         \# \s TYPE \s opensearch_index_merges_total_throttled_time_seconds \s gauge \n
         (
           opensearch_index_merges_total_throttled_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -141,7 +141,7 @@
         \# \s TYPE \s opensearch_index_merges_total_auto_throttle_bytes \s gauge \n
         (
           opensearch_index_merges_total_auto_throttle_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+([eE]\d+)? \n?
         ){2}
         .*/
@@ -153,7 +153,7 @@
         \# \s TYPE \s opensearch_index_merges_total_auto_throttle_bytes_per_second \s gauge \n
         (
           opensearch_index_merges_total_auto_throttle_bytes_per_second\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+([eE]\d+)? \n?
         ){2}
         .*/

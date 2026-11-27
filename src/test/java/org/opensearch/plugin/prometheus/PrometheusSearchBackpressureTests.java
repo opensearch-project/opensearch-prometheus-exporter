@@ -159,7 +159,7 @@ public class PrometheusSearchBackpressureTests extends OpenSearchTestCase {
 
     private static String collect(NodeStats... nodes) throws IOException {
         PrometheusMetricsCollector collector = new PrometheusMetricsCollector(
-                new PrometheusMetricsCatalog("test-cluster", "opensearch_"), false, false);
+                new PrometheusMetricsCatalog("test-cluster", "test-cluster-uuid", "opensearch_"), false, false);
         collector.registerMetrics();
         collector.updateMetrics("origin", "origin-id", null, nodes, null, null);
         return collector.getTextContent();

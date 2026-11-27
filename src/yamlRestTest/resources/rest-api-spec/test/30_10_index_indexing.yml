@@ -33,7 +33,7 @@
         \# \s TYPE \s opensearch_index_indexing_delete_count \s gauge \n
         (
           opensearch_index_indexing_delete_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -45,7 +45,7 @@
         \# \s TYPE \s opensearch_index_indexing_delete_current_number \s gauge \n
         (
           opensearch_index_indexing_delete_current_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -57,7 +57,7 @@
         \# \s TYPE \s opensearch_index_indexing_delete_time_seconds \s gauge \n
         (
           opensearch_index_indexing_delete_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -69,7 +69,7 @@
         \# \s TYPE \s opensearch_index_indexing_index_count \s gauge \n
         (
           opensearch_index_indexing_index_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -81,7 +81,7 @@
         \# \s TYPE \s opensearch_index_indexing_index_current_number \s gauge \n
         (
           opensearch_index_indexing_index_current_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -93,7 +93,7 @@
         \# \s TYPE \s opensearch_index_indexing_index_failed_count \s gauge \n
         (
           opensearch_index_indexing_index_failed_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -105,7 +105,7 @@
         \# \s TYPE \s opensearch_index_indexing_index_time_seconds \s gauge \n
         (
           opensearch_index_indexing_index_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -117,7 +117,7 @@
         \# \s TYPE \s opensearch_index_indexing_noop_update_count \s gauge \n
         (
           opensearch_index_indexing_noop_update_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -129,7 +129,7 @@
         \# \s TYPE \s opensearch_index_indexing_is_throttled_bool \s gauge \n
         (
           opensearch_index_indexing_is_throttled_bool\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -141,7 +141,7 @@
         \# \s TYPE \s opensearch_index_indexing_throttle_time_seconds \s gauge \n
         (
           opensearch_index_indexing_throttle_time_seconds\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/

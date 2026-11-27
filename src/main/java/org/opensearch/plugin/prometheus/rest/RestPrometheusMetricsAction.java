@@ -60,6 +60,7 @@ import java.io.StringWriter;
 import java.io.Writer;
 import java.util.List;
 import java.util.Locale;
+import java.util.function.Supplier;
 
 /**
  * REST action class for Prometheus Exporter plugin.
@@ -84,6 +85,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
     private final String metricPrefix;
     private final PrometheusSettings prometheusSettings;
     private final PrometheusActionFilter actionFilter;
+    private final Supplier<String> clusterUuidSupplier;
     private final Logger logger = LogManager.getLogger(getClass());
 
     /**
@@ -91,12 +93,15 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
      * @param settings Settings
      * @param clusterSettings Cluster settings
      * @param actionFilter The filter holding the latency metrics accumulated on this node
+     * @param clusterUuidSupplier Supplies the UUID of the cluster as currently known to the local node
      */
     public RestPrometheusMetricsAction(Settings settings, ClusterSettings clusterSettings,
-                                       PrometheusActionFilter actionFilter) {
+                                       PrometheusActionFilter actionFilter,
+                                       Supplier<String> clusterUuidSupplier) {
         this.prometheusSettings = new PrometheusSettings(settings, clusterSettings);
         this.metricPrefix = METRIC_PREFIX.get(settings);
         this.actionFilter = actionFilter;
+        this.clusterUuidSupplier = clusterUuidSupplier;
         if (logger.isTraceEnabled()) {
             logger.trace("Prometheus metric prefix set to [{}]", this.metricPrefix);
         }
@@ -132,6 +137,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                     public RestResponse buildResponse(NodePrometheusMetricsResponse response) throws Exception {
 
                         String clusterName = response.getLocalNodesInfoResponse().getClusterName().value();
+                        String clusterUuid = clusterUuidSupplier.get();
                         assert response.getLocalNodesInfoResponse().getNodes().size() == 1;
                         String nodeName = response.getLocalNodesInfoResponse().getNodes().get(0).getNode().getName();
                         String nodeId = response.getLocalNodesInfoResponse().getNodes().get(0).getNode().getId();
@@ -142,7 +148,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                         PrometheusMetricsCollector collector;
                         String textContent;
                         try {
-                            PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, metricPrefix);
+                            PrometheusMetricsCatalog catalog = new PrometheusMetricsCatalog(clusterName, clusterUuid, metricPrefix);
                             collector = new PrometheusMetricsCollector(
                                     catalog,
                                     prometheusSettings.getPrometheusIndices(),
@@ -152,7 +158,7 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
                             collector.updateMetrics(
                                     nodeName, nodeId, response.getClusterHealth(), response.getNodeStats(),
                                     response.getIndicesStats(), response.getClusterStatsData());
-                            textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, nodeName, nodeId);
+                            textContent = collector.getTextContent() + actionMetricsTextContent(clusterName, clusterUuid, nodeName, nodeId);
                         } catch (Exception ex) {
                             // We use try-catch block to catch exception from Prometheus catalog and collector processing
                             // and dump it into the log, otherwise client needs to know how to configure logging to output
@@ -176,9 +182,10 @@ public class RestPrometheusMetricsAction extends BaseRestHandler {
     // The action filter accumulates its metrics across requests, so it keeps its own long-lived registry
     // rather than the per-request one owned by the catalog. Both are rendered in the same text format
     // response; concatenating is safe because the two registries do not share metric names.
-    private String actionMetricsTextContent(String clusterName, String nodeName, String nodeId) throws IOException {
+    private String actionMetricsTextContent(String clusterName, String clusterUuid, String nodeName,
+                                            String nodeId) throws IOException {
         Writer writer = new StringWriter();
-        TextFormat.write004(writer, actionFilter.metricFamilySamples(clusterName, nodeName, nodeId));
+        TextFormat.write004(writer, actionFilter.metricFamilySamples(clusterName, clusterUuid, nodeName, nodeId));
         return writer.toString();
     }
 }

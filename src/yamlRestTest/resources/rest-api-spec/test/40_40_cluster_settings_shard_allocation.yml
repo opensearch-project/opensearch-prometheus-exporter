@@ -21,7 +21,7 @@
         \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
         \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
         opensearch_cluster_routing_allocation_enabled\{
-            cluster="yamlRestTest"
+            cluster="yamlRestTest",cluster_uuid="[^"]+"
         \,} \s 0\.0 \n?
         .*/
 
@@ -45,7 +45,7 @@
         \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
         \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
         opensearch_cluster_routing_allocation_enabled\{
-            cluster="yamlRestTest"
+            cluster="yamlRestTest",cluster_uuid="[^"]+"
         \,} \s 3\.0 \n?
         .*/
 
@@ -69,7 +69,7 @@
         \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
         \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
         opensearch_cluster_routing_allocation_enabled\{
-            cluster="yamlRestTest"
+            cluster="yamlRestTest",cluster_uuid="[^"]+"
         \,} \s 1\.0 \n?
         .*/
 
@@ -93,7 +93,7 @@
         \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
         \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
         opensearch_cluster_routing_allocation_enabled\{
-            cluster="yamlRestTest"
+            cluster="yamlRestTest",cluster_uuid="[^"]+"
         \,} \s 2\.0 \n?
         .*/
 
@@ -120,6 +120,6 @@
         \# \s HELP \s opensearch_cluster_routing_allocation_enabled (\s|\w|\d|\(|\)|\,|\=)+ \n
         \# \s TYPE \s opensearch_cluster_routing_allocation_enabled \s gauge \n
         opensearch_cluster_routing_allocation_enabled\{
-            cluster="yamlRestTest"
+            cluster="yamlRestTest",cluster_uuid="[^"]+"
         \,} \s 0\.0 \n?
         .*/

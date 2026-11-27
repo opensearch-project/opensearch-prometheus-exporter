@@ -33,7 +33,7 @@
         \# \s TYPE \s opensearch_index_querycache_cache_count \s gauge \n
         (
           opensearch_index_querycache_cache_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -45,7 +45,7 @@
         \# \s TYPE \s opensearch_index_querycache_cache_size_bytes \s gauge \n
         (
           opensearch_index_querycache_cache_size_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -57,7 +57,7 @@
         \# \s TYPE \s opensearch_index_querycache_cache_size_number \s gauge \n
         (
           opensearch_index_querycache_cache_size_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -69,7 +69,7 @@
         \# \s TYPE \s opensearch_index_querycache_evictions_count \s gauge \n
         (
           opensearch_index_querycache_evictions_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -81,7 +81,7 @@
         \# \s TYPE \s opensearch_index_querycache_hit_count \s gauge \n
         (
           opensearch_index_querycache_hit_count\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -93,7 +93,7 @@
         \# \s TYPE \s opensearch_index_querycache_memory_size_bytes \s gauge \n
         (
           opensearch_index_querycache_memory_size_bytes\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -105,7 +105,7 @@
         \# \s TYPE \s opensearch_index_querycache_miss_number \s gauge \n
         (
           opensearch_index_querycache_miss_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
@@ -117,7 +117,7 @@
         \# \s TYPE \s opensearch_index_querycache_total_number \s gauge \n
         (
           opensearch_index_querycache_total_number\{
-              cluster="yamlRestTest",index="twitter",context="(primaries|total)"
+              cluster="yamlRestTest",cluster_uuid="[^"]+",index="twitter",context="(primaries|total)"
           ,\} \s+ \d+\.\d+ \n?
         ){2}
         .*/
