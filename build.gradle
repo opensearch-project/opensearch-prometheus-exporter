@@ -110,7 +110,7 @@ configurations.all {
 // JaCoCo 0.8.12 is used, which depends on vulnerable ASM 9.7.
 plugins.withId('jacoco') {
     jacoco {
-        toolVersion = "0.8.13"
+        toolVersion = "0.8.16"
     }
 }
 
